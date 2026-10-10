@@ -179,36 +179,59 @@ fun HomeScreen(navController: NavController) {
     }
 
     fun sendRequest(user: User) {
-        if (myUid.isBlank() || user.uid.isBlank()) return
+    if (myUid.isBlank() || user.uid.isBlank()) {
+        Toast.makeText(
+            context,
+            "Please log in again",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
 
-        val requestId = "${myUid}_${user.uid}"
-        val requestRef = db.collection("friendRequests").document(requestId)
+    if (myUid == user.uid) {
+        Toast.makeText(
+            context,
+            "You cannot add yourself",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
 
-        requestRef.get().addOnSuccessListener { doc ->
-            if (doc.exists() &&
-                doc.getString("status") in listOf("pending", "accepted")
-            ) {
-                Toast.makeText(context, "Request already exists", Toast.LENGTH_SHORT).show()
-                return@addOnSuccessListener
-            }
+    val request = hashMapOf(
+        "requestId" to "",
+        "senderId" to myUid,
+        "receiverId" to user.uid,
+        "status" to "pending",
+        "timestamp" to System.currentTimeMillis()
+    )
 
-            val data = hashMapOf(
-                "requestId" to requestId,
-                "senderId" to myUid,
-                "receiverId" to user.uid,
-                "status" to "pending",
-                "timestamp" to System.currentTimeMillis()
-            )
-
-            requestRef.set(data)
+    db.collection("friendRequests")
+        .add(request)
+        .addOnSuccessListener { document ->
+            document.update("requestId", document.id)
                 .addOnSuccessListener {
-                    Toast.makeText(context, "Friend request sent", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Friend request sent!",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
-                .addOnFailureListener {
-                    Toast.makeText(context, it.localizedMessage ?: "Request failed", Toast.LENGTH_LONG).show()
+                .addOnFailureListener { error ->
+                    Toast.makeText(
+                        context,
+                        error.localizedMessage
+                            ?: "Request created, but update failed",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
-        }.addOnFailureListener {
-            Toast.makeText(context, it.localizedMessage ?: "Request failed", Toast.LENGTH_LONG).show()
+        }
+        .addOnFailureListener { error ->
+            Toast.makeText(
+                context,
+                error.localizedMessage
+                    ?: "Friend request failed",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 

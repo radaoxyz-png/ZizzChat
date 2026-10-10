@@ -115,9 +115,12 @@ class ChatActivity : AppCompatActivity() {
         }
 
         scrollView.addView(
-            messagesLayout,
-            ScrollView.LayoutParams(-1, -2)
-        )
+    messagesLayout,
+    android.widget.FrameLayout.LayoutParams(
+        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+        android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+    )
+)
 
         root.addView(
             scrollView,

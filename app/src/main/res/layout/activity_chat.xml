@@ -3,43 +3,99 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#EAE6DF">
+    android:background="#07151B">
 
-    <!-- WhatsApp-style Header -->
+    <!-- WhatsApp Style Header -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="68dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingEnd="18dp"
-        android:background="#075E54"
-        android:elevation="3dp">
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:background="#193039"
+        android:elevation="4dp">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="44dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:contentDescription="Back"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFFF" />
 
         <TextView
-            android:id="@+id/chatTitle"
+            android:id="@+id/chatAvatar"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:gravity="center"
+            android:background="#526872"
+            android:text="A"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Friend"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:maxLines="1" />
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/chatTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Friend"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Private chat"
+                android:textColor="#B7C8CE"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/videoCallButton"
+            android:layout_width="42dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_camera"
+            android:contentDescription="Video call"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/voiceCallButton"
+            android:layout_width="42dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_call"
+            android:contentDescription="Voice call"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:tint="#FFFFFF" />
 
     </LinearLayout>
 
-    <!-- Chat Messages -->
+    <!-- Messages Area -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/chatRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         android:clipToPadding="false"
+        android:background="#07151B"
         android:overScrollMode="never" />
 
     <!-- Message Composer -->
@@ -48,35 +104,44 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="8dp"
-        android:background="#F7F7F7">
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="#07151B">
 
         <EditText
             android:id="@+id/messageInput"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:minHeight="48dp"
+            android:maxHeight="120dp"
             android:hint="Message"
             android:inputType="textCapSentences|textMultiLine"
             android:maxLength="2000"
             android:maxLines="4"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:backgroundTint="#BDBDBD"
-            android:background="#FFFFFF"
-            android:textColor="#202124"
-            android:textColorHint="#777777"
-            android:textSize="16sp" />
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:background="#20343D"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#AFC0C7"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp" />
 
         <Button
             android:id="@+id/sendButton"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:layout_marginStart="8dp"
+            android:minWidth="64dp"
             android:text="Send"
             android:textAllCaps="false"
+            android:textSize="14sp"
+            android:textStyle="bold"
             android:textColor="#FFFFFF"
-            android:backgroundTint="#075E54" />
+            android:backgroundTint="#008F72" />
 
     </LinearLayout>
 

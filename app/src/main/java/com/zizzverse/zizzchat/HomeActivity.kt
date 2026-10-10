@@ -230,6 +230,85 @@ class HomeActivity : Activity() {
 
         header.addView(menuButton)
 
+
+        // ======================================
+        // 👥 FRIEND ACTION BUTTONS
+        // ======================================
+
+        val friendActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val friendActionsParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(dp(16), dp(14), dp(16), dp(4))
+        }
+
+        root.addView(friendActions, friendActionsParams)
+
+        // ➕ ADD FRIEND BUTTON — Friend Search খুলবে
+        val addFriendButton = TextView(this).apply {
+            text = "＋  Add Friends"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(14), dp(10), dp(14))
+            background = rounded(blue, 14)
+
+            setOnClickListener {
+                startActivity(
+                    Intent(
+                        this@HomeActivity,
+                        FriendsActivity::class.java
+                    )
+                )
+            }
+        }
+
+        friendActions.addView(
+            addFriendButton,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            ).apply {
+                setMargins(0, 0, dp(6), 0)
+            }
+        )
+
+        // 📩 FRIEND REQUESTS BUTTON
+        val requestsButton = TextView(this).apply {
+            text = "✉  Requests"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(dp(10), dp(14), dp(10), dp(14))
+            background = rounded(card, 14)
+
+            setOnClickListener {
+                Toast.makeText(
+                    this@HomeActivity,
+                    "Friend Requests page is coming next!",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        friendActions.addView(
+            requestsButton,
+            LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            ).apply {
+                setMargins(dp(6), 0, 0, 0)
+            }
+        )
+        
+
         // ======================================
         // 👋 WELCOME CARD
         // ======================================

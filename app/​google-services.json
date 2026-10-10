@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "346869083038",
+    "project_id": "zizzchat-2a423",
+    "storage_bucket": "zizzchat-2a423.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:346869083038:android:449aefb3f5770a0b1a048f",
+        "android_client_info": {
+          "package_name": "com.zizzverse.zizzchat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCG2tfcGT6ZHauzMzJDxWMV4il2GKpUIeo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -863,6 +863,10 @@ class HomeActivity : Activity() {
     override fun onDestroy() {
         messageListener?.remove()
         messageListener = null
+        incomingFriendsListener?.remove()
+outgoingFriendsListener?.remove()
+incomingFriendsListener = null
+outgoingFriendsListener = null
         super.onDestroy()
     }
 }

@@ -1,18 +1,16 @@
 package com.zizzverse.zizzchat
 
+import android.app.Activity
+import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.os.Bundle
 import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
-import android.app.Activity
+import android.widget.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -28,12 +26,45 @@ class ChatActivity : Activity() {
     private lateinit var friendName: String
     private lateinit var roomId: String
 
+    private lateinit var root: LinearLayout
     private lateinit var messagesLayout: LinearLayout
     private lateinit var messageInput: EditText
     private lateinit var scrollView: ScrollView
-    private lateinit var sendButton: Button
+    private lateinit var sendButton: TextView
 
     private var messagesListener: ListenerRegistration? = null
+
+    private val backgroundColor = Color.rgb(11, 20, 26)
+    private val headerColor = Color.rgb(32, 44, 51)
+    private val incomingColor = Color.rgb(32, 44, 51)
+    private val outgoingColor = Color.rgb(0, 92, 75)
+    private val white = Color.rgb(233, 237, 239)
+    private val muted = Color.rgb(174, 186, 193)
+    private val green = Color.rgb(0, 168, 132)
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    private fun rounded(color: Int, radius: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(radius).toFloat()
+        }
+    }
+
+    private fun makeText(
+        value: String,
+        size: Float,
+        color: Int,
+        bold: Boolean = false
+    ): TextView {
+        return TextView(this).apply {
+            text = value
+            textSize = size
+            setTextColor(color)
+            if (bold) setTypeface(null, Typeface.BOLD)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,13 +78,18 @@ class ChatActivity : Activity() {
             friendUid.isBlank() ||
             friendUid == myUid
         ) {
-            Toast.makeText(this, "Invalid chat or friend", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Invalid friend", Toast.LENGTH_LONG).show()
             finish()
             return
         }
 
-        // Both users calculate the same room ID.
         roomId = listOf(myUid, friendUid).sorted().joinToString("_")
+
+        window.statusBarColor = backgroundColor
+        window.navigationBarColor = Color.BLACK
+        window.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
 
         createChatUI()
         prepareChatRoom()
@@ -61,93 +97,228 @@ class ChatActivity : Activity() {
     }
 
     private fun createChatUI() {
-        val root = LinearLayout(this).apply {
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(245, 247, 250))
+            setBackgroundColor(backgroundColor)
         }
 
-        // Header
+        // TOP HEADER
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(12, 12, 12, 12)
-            setBackgroundColor(Color.rgb(28, 40, 65))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setBackgroundColor(headerColor)
         }
 
-        val backButton = Button(this).apply {
-            text = "‹"
-            textSize = 28f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.TRANSPARENT)
+        val back = makeText("‹", 38f, white).apply {
+            gravity = Gravity.CENTER
             setOnClickListener { finish() }
         }
 
-        val title = TextView(this).apply {
-            text = friendName
-            textSize = 20f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            setPadding(12, 0, 0, 0)
+        header.addView(back, LinearLayout.LayoutParams(dp(40), dp(48)))
+
+        val avatar = makeText(
+            friendName.take(1).uppercase(),
+            20f,
+            white,
+            true
+        ).apply {
+            gravity = Gravity.CENTER
+            background = rounded(Color.rgb(82, 97, 107), 50)
         }
 
-        header.addView(
-            backButton,
-            LinearLayout.LayoutParams(52, 56)
+        val avatarParams = LinearLayout.LayoutParams(dp(42), dp(42))
+        avatarParams.setMargins(dp(4), 0, dp(10), 0)
+        header.addView(avatar, avatarParams)
+
+        val titleColumn = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        titleColumn.addView(
+            makeText(friendName, 17f, white, true).apply {
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
         )
+
+        titleColumn.addView(makeText("Private chat", 12f, muted))
+
         header.addView(
-            title,
+            titleColumn,
             LinearLayout.LayoutParams(0, -2, 1f)
         )
 
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(-1, -2)
+        val videoButton = makeText("▣", 25f, white).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                Toast.makeText(
+                    this@ChatActivity,
+                    "Video calling will be added later",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        header.addView(
+            videoButton,
+            LinearLayout.LayoutParams(dp(42), dp(48))
         )
 
-        // Messages area
+        val callButton = makeText("☎", 25f, white).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                Toast.makeText(
+                    this@ChatActivity,
+                    "Voice calling will be added later",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        header.addView(
+            callButton,
+            LinearLayout.LayoutParams(dp(42), dp(48))
+        )
+
+        val menuButton = makeText("⋮", 27f, white).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener { showChatMenu(it) }
+        }
+
+        header.addView(
+            menuButton,
+            LinearLayout.LayoutParams(dp(32), dp(48))
+        )
+
+        root.addView(header)
+
+        // MESSAGES
         scrollView = ScrollView(this).apply {
             isFillViewport = true
+            isVerticalScrollBarEnabled = false
         }
 
         messagesLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(12, 12, 12, 12)
+            setPadding(dp(10), dp(12), dp(10), dp(12))
         }
 
         scrollView.addView(
-    messagesLayout,
-    android.widget.FrameLayout.LayoutParams(
-        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-        android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-    )
-)
+            messagesLayout,
+            android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         root.addView(
             scrollView,
             LinearLayout.LayoutParams( -1, 0, 1f)
         )
 
-        // Message input row
+        // BOTTOM MESSAGE BAR
         val inputRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(8, 8, 8, 8)
-            setBackgroundColor(Color.WHITE)
+            setPadding(dp(6), dp(7), dp(6), dp(7))
+            setBackgroundColor(backgroundColor)
+        }
+
+        val emojiButton = makeText("☻", 25f, muted).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                messageInput.requestFocus()
+                Toast.makeText(
+                    this@ChatActivity,
+                    "Use your keyboard's emoji button",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        inputRow.addView(
+            emojiButton,
+            LinearLayout.LayoutParams(dp(38), dp(48))
+        )
+
+        val messageContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = rounded(Color.rgb(42, 57, 66), 28)
+            setPadding(dp(12), 0, dp(6), 0)
         }
 
         messageInput = EditText(this).apply {
-            hint = "Write a message..."
+            hint = "Message"
+            setHintTextColor(muted)
+            setTextColor(white)
             textSize = 16f
             setSingleLine(true)
             imeOptions = EditorInfo.IME_ACTION_SEND
+            background = null
+            setPadding(0, dp(10), dp(4), dp(10))
         }
 
-        sendButton = Button(this).apply {
-            text = "Send"
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.rgb(45, 105, 220))
+        messageContainer.addView(
+            messageInput,
+            LinearLayout.LayoutParams(0, -2, 1f)
+        )
+
+        val attachButton = makeText("＋", 27f, muted).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                Toast.makeText(
+                    this@ChatActivity,
+                    "Attachments will be added later",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        messageContainer.addView(
+            attachButton,
+            LinearLayout.LayoutParams(dp(38), dp(48))
+        )
+
+        val cameraButton = makeText("▣", 23f, muted).apply {
+            gravity = Gravity.CENTER
+            setOnClickListener {
+                Toast.makeText(
+                    this@ChatActivity,
+                    "Camera feature will be added later",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        messageContainer.addView(
+            cameraButton,
+            LinearLayout.LayoutParams(dp(38), dp(48))
+        )
+
+        inputRow.addView(
+            messageContainer,
+            LinearLayout.LayoutParams(0, -2, 1f)
+        )
+
+        sendButton = makeText("➤", 23f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            background = rounded(green, 50)
             setOnClickListener { sendMessage() }
         }
+
+        val sendParams = LinearLayout.LayoutParams(dp(46), dp(46))
+        sendParams.setMargins(dp(6), 0, dp(2), 0)
+        inputRow.addView(sendButton, sendParams)
+
+        root.addView(
+            inputRow,
+            LinearLayout.LayoutParams(-1, -2)
+        )
+
+        setContentView(root)
 
         messageInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -157,22 +328,35 @@ class ChatActivity : Activity() {
                 false
             }
         }
+    }
 
-        inputRow.addView(
-            messageInput,
-            LinearLayout.LayoutParams(0, -2, 1f)
-        )
-        inputRow.addView(
-            sendButton,
-            LinearLayout.LayoutParams(-2, -2)
-        )
+    private fun showChatMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
+        popup.menu.add("Clear screen")
+        popup.menu.add("Friend details")
 
-        root.addView(
-            inputRow,
-            LinearLayout.LayoutParams(-1, -2)
-        )
+        popup.setOnMenuItemClickListener { item ->
+            when (item.title.toString()) {
+                "Clear screen" -> {
+                    Toast.makeText(
+                        this,
+                        "Messages are saved in your chat",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
 
-        setContentView(root)
+                "Friend details" -> {
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle(friendName)
+                        .setMessage("Private conversation")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
+            true
+        }
+
+        popup.show()
     }
 
     private fun prepareChatRoom() {
@@ -185,7 +369,17 @@ class ChatActivity : Activity() {
 
         db.collection("privateChats")
             .document(roomId)
-            .set(roomData, com.google.firebase.firestore.SetOptions.merge())
+            .set(
+                roomData,
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            .addOnFailureListener { error ->
+                Toast.makeText(
+                    this,
+                    "Chat setup failed: ${error.localizedMessage}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
     }
 
     private fun listenForMessages() {
@@ -199,7 +393,7 @@ class ChatActivity : Activity() {
                 if (error != null) {
                     Toast.makeText(
                         this,
-                        "Could not load messages: ${error.localizedMessage}",
+                        "Message load failed: ${error.localizedMessage}",
                         Toast.LENGTH_LONG
                     ).show()
                     return@addSnapshotListener
@@ -211,49 +405,58 @@ class ChatActivity : Activity() {
 
                 snapshot?.documents?.forEach { document ->
                     val senderUid = document.getString("senderUid") ?: ""
-                    val messageText = document.getString("text") ?: ""
+                    val text = document.getString("text") ?: ""
 
-                    if (messageText.isNotBlank()) {
-                        addMessageBubble(
-                            messageText,
-                            senderUid == myUid
-                        )
+                    if (text.isNotBlank()) {
+                        addMessageBubble(text, senderUid == myUid)
                     }
                 }
 
                 scrollView.post {
-                    scrollView.fullScroll(ScrollView.FOCUS_DOWN)
+                    scrollView.fullScroll(View.FOCUS_DOWN)
                 }
             }
     }
 
-    private fun addMessageBubble(message: String, isMine: Boolean) {
+    private fun addMessageBubble(text: String, isMine: Boolean) {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = if (isMine) Gravity.END else Gravity.START
-            setPadding(0, 4, 0, 4)
+            setPadding(0, dp(3), 0, dp(3))
         }
 
-        val bubble = TextView(this).apply {
-            text = message
-            textSize = 16f
-            setTextColor(
-                if (isMine) Color.WHITE else Color.rgb(30, 30, 30)
+        val bubble = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(6))
+            background = rounded(
+                if (isMine) outgoingColor else incomingColor,
+                12
             )
-            setPadding(14, 10, 14, 10)
-
-            background = GradientDrawable().apply {
-                setColor(
-                    if (isMine) Color.rgb(45, 105, 220)
-                    else Color.WHITE
-                )
-                cornerRadius = 22f
-            }
-
-            maxWidth = (resources.displayMetrics.widthPixels * 0.75f).toInt()
+            maximumWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt()
         }
+
+        bubble.addView(
+            makeText(text, 16f, white)
+        )
+
+        val time = java.text.SimpleDateFormat(
+            "HH:mm",
+            java.util.Locale.getDefault()
+        ).format(java.util.Date())
+
+        bubble.addView(
+            makeText(
+                if (isMine) "$time  ✓✓" else time,
+                10f,
+                if (isMine) Color.rgb(184, 218, 207) else muted
+            ).apply {
+                gravity = Gravity.END
+                setPadding(dp(12), dp(4), 0, 0)
+            }
+        )
 
         row.addView(bubble)
+
         messagesLayout.addView(
             row,
             LinearLayout.LayoutParams(-1, -2)
@@ -262,25 +465,26 @@ class ChatActivity : Activity() {
 
     private fun sendMessage() {
         val myUid = auth.currentUser?.uid ?: return
-        val messageText = messageInput.text.toString().trim()
+        val text = messageInput.text.toString().trim()
 
-        if (messageText.isEmpty()) return
+        if (text.isEmpty()) return
 
         sendButton.isEnabled = false
 
-        val messageData = hashMapOf<String, Any>(
+        val data = hashMapOf<String, Any>(
             "senderUid" to myUid,
             "receiverUid" to friendUid,
-            "text" to messageText,
+            "text" to text,
             "timestamp" to FieldValue.serverTimestamp()
         )
 
         db.collection("privateChats")
             .document(roomId)
             .collection("messages")
-            .add(messageData)
+            .add(data)
             .addOnSuccessListener {
                 messageInput.setText("")
+
                 db.collection("privateChats")
                     .document(roomId)
                     .update("updatedAt", FieldValue.serverTimestamp())
@@ -288,7 +492,7 @@ class ChatActivity : Activity() {
             .addOnFailureListener { error ->
                 Toast.makeText(
                     this,
-                    "Message failed: ${error.localizedMessage}",
+                    "Send failed: ${error.localizedMessage}",
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -299,6 +503,7 @@ class ChatActivity : Activity() {
 
     override fun onDestroy() {
         messagesListener?.remove()
+        messagesListener = null
         super.onDestroy()
     }
 }

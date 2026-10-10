@@ -332,6 +332,35 @@ class HomeActivity : Activity() {
         // 👋 WELCOME CARD
         // ======================================
 
+        // 👥 FRIENDS LIST UI
+        val friendsCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = rounded(card, 18)
+        }
+
+        root.addView(
+            friendsCard,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(dp(16), dp(10), dp(16), dp(4))
+            }
+        )
+
+        friendsCard.addView(
+            makeText("👥 My Friends", 17f, white, true)
+        )
+
+        friendsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        friendsCard.addView(friendsLayout)
+
+        showFriendsInfo("Loading friends...")
+        
         val welcomeCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(16), dp(18), dp(16))

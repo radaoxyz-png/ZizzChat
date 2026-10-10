@@ -165,7 +165,7 @@ class FriendsActivity : Activity() {
             setHintTextColor(muted)
             setTextColor(white)
             textSize = 14f
-            singleLine = true
+            setSingleLine(true)
 
             setPadding(dp(14), dp(12), dp(14), dp(12))
             background = rounded(card, 14)

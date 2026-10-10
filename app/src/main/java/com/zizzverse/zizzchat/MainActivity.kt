@@ -1,37 +1,62 @@
 package com.zizzverse.zizzchat
 
-import android.app.Activity
 import android.os.Bundle
-import android.content.Intent
-import com.google.firebase.auth.FirebaseAuth
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
-// ==========================================
-// 🚀 MAIN ACTIVITY — APP STARTING POINT
-// ==========================================
-
-class MainActivity : Activity() {
-
-    // 🔥 FIREBASE LOGIN STATUS
-    private val auth by lazy {
-        FirebaseAuth.getInstance()
-    }
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 🔐 USER LOGIN করা থাকলে Home Page
-        if (auth.currentUser != null) {
-            startActivity(
-                Intent(this, HomeActivity::class.java)
-            )
-        } else {
-            // 🔓 LOGIN না থাকলে Login Page
-            startActivity(
-                Intent(this, LoginActivity::class.java)
-            )
+        setContent {
+            ZizzChatApp()
         }
+    }
+}
 
-        // 🧹 MainActivity-তে ফিরে আসা বন্ধ
-        finish()
+@Composable
+fun ZizzChatApp() {
+    MaterialTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            AppNavigation()
+        }
+    }
+}
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+
+    // Screen Routes Setup
+    NavHost(
+        navController = navController,
+        startDestination = "login"
+    ) {
+        composable("login") {
+            // LoginScreen(navController)
+        }
+        composable("signup") {
+            // SignupScreen(navController)
+        }
+        composable("home") {
+            // HomeScreen(navController)
+        }
+        composable("chat/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            // ChatScreen(navController, userId)
+        }
+        composable("profile") {
+            // ProfileScreen(navController)
+        }
     }
 }

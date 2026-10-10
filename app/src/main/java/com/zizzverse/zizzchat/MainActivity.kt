@@ -37,6 +37,8 @@ class MainActivity : Activity() {
     private lateinit var confirmInput: EditText
     private lateinit var messages: LinearLayout
     private lateinit var messageInput: EditText
+    private lateinit var emptyState: LinearLayout
+    private lateinit var messagesScroll: ScrollView
 
     private var messageListener: ListenerRegistration? = null
     private var showPassword = false
@@ -50,7 +52,11 @@ class MainActivity : Activity() {
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         )
 
-        if (auth.currentUser != null) showChat() else showLogin()
+        if (auth.currentUser != null) {
+            showChat()
+        } else {
+            showLogin()
+        }
     }
 
     private fun dp(value: Int): Int =
@@ -99,13 +105,13 @@ class MainActivity : Activity() {
     private fun makeRoot() {
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(14), dp(22), dp(12))
+            setPadding(dp(20), dp(10), dp(20), dp(8))
             setBackgroundColor(bg)
         }
         setContentView(root)
     }
 
-    private fun params() = LinearLayout.LayoutParams(
+    private fun matchParams() = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT
     )
@@ -128,7 +134,7 @@ class MainActivity : Activity() {
             textSize = 15f
             inputType = type
             setSingleLine(true)
-            setPadding(dp(16), dp(14), dp(16), dp(14))
+            setPadding(dp(16), dp(13), dp(16), dp(13))
             background = shape(card, 15, Color.rgb(44, 59, 83))
         }
     }
@@ -144,7 +150,7 @@ class MainActivity : Activity() {
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
             background = gradientButton()
-            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setPadding(dp(16), dp(15), dp(16), dp(15))
             isClickable = true
             isFocusable = true
             setOnClickListener { action() }
@@ -159,26 +165,29 @@ class MainActivity : Activity() {
             setTextColor(white)
             setTypeface(null, Typeface.BOLD)
             background = gradientButton()
-            elevation = dp(8).toFloat()
+            elevation = dp(6).toFloat()
         }
 
-        val logoRow = LinearLayout(this).apply {
+        val row = LinearLayout(this).apply {
             gravity = Gravity.CENTER
             addView(logo, LinearLayout.LayoutParams(dp(76), dp(76)))
         }
 
-        root.addView(logoRow)
+        root.addView(row)
     }
 
     private fun addLink(
         textValue: String,
         action: () -> Unit
     ) {
-        val link = label(textValue, 14f, blueLight)
-        link.gravity = Gravity.CENTER
-        link.setPadding(0, dp(16), 0, dp(16))
-        link.setOnClickListener { action() }
-        root.addView(link, params())
+        root.addView(
+            label(textValue, 14f, blueLight).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(15), 0, dp(15))
+                setOnClickListener { action() }
+            },
+            matchParams()
+        )
     }
 
     private fun showLogin() {
@@ -186,10 +195,7 @@ class MainActivity : Activity() {
         showPassword = false
         makeRoot()
 
-        root.addView(
-            View(this),
-            LinearLayout.LayoutParams(1, 0, 1f)
-        )
+        root.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         addLogo()
         gap(22)
@@ -198,7 +204,7 @@ class MainActivity : Activity() {
             label("Welcome Back", 30f, white, true).apply {
                 gravity = Gravity.CENTER
             },
-            params()
+            matchParams()
         )
 
         gap(6)
@@ -207,12 +213,11 @@ class MainActivity : Activity() {
             label("Sign in to continue to ZizzChat", 14f, muted).apply {
                 gravity = Gravity.CENTER
             },
-            params()
+            matchParams()
         )
 
-        gap(34)
-
-        root.addView(label("Email address", 13f, muted), params())
+        gap(30)
+        root.addView(label("Email address", 13f, muted), matchParams())
         gap(7)
 
         emailInput = makeInput(
@@ -220,11 +225,10 @@ class MainActivity : Activity() {
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         )
-        root.addView(emailInput, params())
+        root.addView(emailInput, matchParams())
 
-        gap(18)
-
-        root.addView(label("Password", 13f, muted), params())
+        gap(16)
+        root.addView(label("Password", 13f, muted), matchParams())
         gap(7)
 
         passwordInput = makeInput(
@@ -232,43 +236,36 @@ class MainActivity : Activity() {
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
-        root.addView(passwordInput, params())
+        root.addView(passwordInput, matchParams())
 
         addLink("Show / hide password") {
             showPassword = !showPassword
-            passwordInput.inputType =
-                if (showPassword) {
-                    InputType.TYPE_CLASS_TEXT or
-                        InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                } else {
-                    InputType.TYPE_CLASS_TEXT or
-                        InputType.TYPE_TEXT_VARIATION_PASSWORD
-                }
+            passwordInput.inputType = if (showPassword) {
+                InputType.TYPE_CLASS_TEXT or
+                    InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+            } else {
+                InputType.TYPE_CLASS_TEXT or
+                    InputType.TYPE_TEXT_VARIATION_PASSWORD
+            }
             passwordInput.setSelection(passwordInput.text.length)
         }
 
         root.addView(
             makeButton("Log In") { authenticate(false) },
-            params()
+            matchParams()
         )
-
-        gap(10)
 
         addLink("Don't have an account?  Create Account") {
             showCreateAccount()
         }
 
         root.addView(
-            label("PRIVATE MESSAGES  •  REAL CONNECTIONS", 10f, muted).apply {
-                gravity = Gravity.CENTER
-            },
-            params()
+            label("PRIVATE MESSAGES  •  REAL CONNECTIONS", 10f, muted)
+                .apply { gravity = Gravity.CENTER },
+            matchParams()
         )
 
-        root.addView(
-            View(this),
-            LinearLayout.LayoutParams(1, 0, 1f)
-        )
+        root.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
     }
 
     private fun showCreateAccount() {
@@ -276,19 +273,16 @@ class MainActivity : Activity() {
         showPassword = false
         makeRoot()
 
-        root.addView(
-            View(this),
-            LinearLayout.LayoutParams(1, 0, 1f)
-        )
+        root.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         addLogo()
-        gap(20)
+        gap(18)
 
         root.addView(
             label("Create Account", 29f, white, true).apply {
                 gravity = Gravity.CENTER
             },
-            params()
+            matchParams()
         )
 
         gap(6)
@@ -297,12 +291,11 @@ class MainActivity : Activity() {
             label("Your new conversations start here", 14f, muted).apply {
                 gravity = Gravity.CENTER
             },
-            params()
+            matchParams()
         )
 
-        gap(28)
-
-        root.addView(label("Email address", 13f, muted), params())
+        gap(25)
+        root.addView(label("Email address", 13f, muted), matchParams())
         gap(7)
 
         emailInput = makeInput(
@@ -310,11 +303,10 @@ class MainActivity : Activity() {
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         )
-        root.addView(emailInput, params())
+        root.addView(emailInput, matchParams())
 
-        gap(16)
-
-        root.addView(label("Password", 13f, muted), params())
+        gap(14)
+        root.addView(label("Password", 13f, muted), matchParams())
         gap(7)
 
         passwordInput = makeInput(
@@ -322,11 +314,10 @@ class MainActivity : Activity() {
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
-        root.addView(passwordInput, params())
+        root.addView(passwordInput, matchParams())
 
-        gap(16)
-
-        root.addView(label("Confirm password", 13f, muted), params())
+        gap(14)
+        root.addView(label("Confirm password", 13f, muted), matchParams())
         gap(7)
 
         confirmInput = makeInput(
@@ -334,32 +325,28 @@ class MainActivity : Activity() {
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
-        root.addView(confirmInput, params())
+        root.addView(confirmInput, matchParams())
 
-        gap(24)
+        gap(22)
 
         root.addView(
             makeButton("Create Account") {
-                val password = passwordInput.text.toString()
-                val confirm = confirmInput.text.toString()
-
-                if (password != confirm) {
+                if (passwordInput.text.toString() !=
+                    confirmInput.text.toString()
+                ) {
                     toast("Passwords do not match")
                 } else {
                     authenticate(true)
                 }
             },
-            params()
+            matchParams()
         )
 
         addLink("Already have an account?  Log In") {
             showLogin()
         }
 
-        root.addView(
-            View(this),
-            LinearLayout.LayoutParams(1, 0, 1f)
-        )
+        root.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
     }
 
     private fun authenticate(create: Boolean) {
@@ -388,10 +375,11 @@ class MainActivity : Activity() {
         messageListener?.remove()
         makeRoot()
 
+        // Header
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(6), 0, dp(16))
+            setPadding(0, dp(5), 0, dp(13))
         }
 
         val logo = TextView(this).apply {
@@ -403,7 +391,7 @@ class MainActivity : Activity() {
             background = gradientButton()
         }
 
-        header.addView(logo, LinearLayout.LayoutParams(dp(50), dp(50)))
+        header.addView(logo, LinearLayout.LayoutParams(dp(48), dp(48)))
 
         val titleBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -411,34 +399,46 @@ class MainActivity : Activity() {
         }
 
         titleBox.addView(label("ZizzChat", 21f, white, true))
-        titleBox.addView(
-            label("●  General Chat", 12f, green)
-        )
+        titleBox.addView(label("●  General Chat", 12f, green))
 
         header.addView(
             titleBox,
             LinearLayout.LayoutParams(0, -2, 1f)
         )
 
-        val logout = TextView(this).apply {
-            text = "Logout"
-            textSize = 12f
-            setTextColor(blueLight)
+        val menuButton = TextView(this).apply {
+            text = "⋮"
+            textSize = 28f
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setTextColor(white)
+            setPadding(dp(12), 0, dp(8), 0)
+
             setOnClickListener {
-                auth.signOut()
-                messageListener?.remove()
-                showLogin()
+                PopupMenu(this@MainActivity, this).apply {
+                    menu.add("Refresh messages").setOnMenuItemClickListener {
+                        listenForMessages()
+                        true
+                    }
+
+                    menu.add("Logout").setOnMenuItemClickListener {
+                        messageListener?.remove()
+                        auth.signOut()
+                        showLogin()
+                        true
+                    }
+
+                    show()
+                }
             }
         }
 
-        header.addView(logout)
+        header.addView(menuButton)
         root.addView(header)
 
         val divider = View(this).apply {
             setBackgroundColor(Color.rgb(39, 52, 76))
         }
+
         root.addView(
             divider,
             LinearLayout.LayoutParams(
@@ -447,34 +447,99 @@ class MainActivity : Activity() {
             )
         )
 
+        // Welcome panel
         val welcome = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(18), 0, dp(18))
+            setPadding(dp(15), dp(13), dp(15), dp(13))
+            background = shape(card, 16)
         }
 
         welcome.addView(
-            label("Welcome to ZizzChat 👋", 17f, white, true)
+            label("Welcome to ZizzChat 👋", 16f, white, true)
         )
         welcome.addView(
-            label("Say hello and start a conversation", 12f, muted)
+            label("Say hello and start a conversation.", 12f, muted)
         )
 
-        root.addView(welcome)
+        val welcomeParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        welcomeParams.setMargins(0, dp(13), 0, dp(8))
+        root.addView(welcome, welcomeParams)
 
-        val scroll = ScrollView(this).apply {
+        // Chat area
+        val chatArea = FrameLayout(this)
+
+        messagesScroll = ScrollView(this).apply {
             isFillViewport = true
+            clipToPadding = false
+            setPadding(0, dp(4), 0, dp(8))
         }
 
         messages = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, dp(8))
         }
 
-        scroll.addView(messages)
+        messagesScroll.addView(
+            messages,
+            ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+
+        chatArea.addView(
+            messagesScroll,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        // Empty state shown only when no messages exist
+        emptyState = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(22), dp(20), dp(22), dp(20))
+            visibility = View.GONE
+        }
+
+        val emptyIcon = TextView(this).apply {
+            text = "✦"
+            textSize = 40f
+            gravity = Gravity.CENTER
+            setTextColor(blueLight)
+            background = shape(card, 35)
+        }
+
+        emptyState.addView(
+            emptyIcon,
+            LinearLayout.LayoutParams(dp(72), dp(72))
+        )
+
+        emptyState.addView(
+            label("No messages yet", 18f, white, true).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(14), 0, dp(5))
+            }
+        )
+
+        emptyState.addView(
+            label("Send the first message to start chatting.", 13f, muted)
+                .apply { gravity = Gravity.CENTER }
+        )
+
+        chatArea.addView(
+            emptyState,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
 
         root.addView(
-            scroll,
+            chatArea,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 0,
@@ -482,10 +547,11 @@ class MainActivity : Activity() {
             )
         )
 
+        // Bottom composer
         val composer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, dp(4))
+            setPadding(0, dp(10), 0, dp(4))
         }
 
         messageInput = EditText(this).apply {
@@ -494,8 +560,12 @@ class MainActivity : Activity() {
             setTextColor(white)
             textSize = 14f
             maxLines = 3
+            minHeight = dp(50)
+
             inputType = InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or
+                InputType.TYPE_TEXT_FLAG_MULTI_LINE
+
             imeOptions = EditorInfo.IME_ACTION_SEND
             setPadding(dp(16), dp(10), dp(16), dp(10))
             background = shape(card, 25)
@@ -515,9 +585,9 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, dp(52), 1f)
         )
 
-        val send = TextView(this).apply {
+        val sendButton = TextView(this).apply {
             text = "➤"
-            textSize = 23f
+            textSize = 22f
             gravity = Gravity.CENTER
             setTextColor(white)
             background = gradientButton()
@@ -526,9 +596,9 @@ class MainActivity : Activity() {
 
         val sendParams = LinearLayout.LayoutParams(dp(52), dp(52))
         sendParams.setMargins(dp(10), 0, 0, 0)
-        composer.addView(send, sendParams)
-
+        composer.addView(sendButton, sendParams)
         root.addView(composer)
+
         listenForMessages()
     }
 
@@ -558,6 +628,8 @@ class MainActivity : Activity() {
     }
 
     private fun listenForMessages() {
+        messageListener?.remove()
+
         messageListener = db.collection("rooms")
             .document("general")
             .collection("messages")
@@ -571,7 +643,11 @@ class MainActivity : Activity() {
 
                 messages.removeAllViews()
 
-                snapshot?.documents?.forEach { doc ->
+                val docs = snapshot?.documents ?: emptyList()
+                emptyState.visibility =
+                    if (docs.isEmpty()) View.VISIBLE else View.GONE
+
+                docs.forEach { doc ->
                     val uid = doc.getString("uid") ?: ""
                     val email = doc.getString("email") ?: "User"
                     val body = doc.getString("text") ?: ""
@@ -606,7 +682,13 @@ class MainActivity : Activity() {
                     )
 
                     row.addView(bubble, bubbleParams)
-                    messages.addView(row, params())
+                    messages.addView(row, matchParams())
+                }
+
+                if (docs.isNotEmpty()) {
+                    messagesScroll.post {
+                        messagesScroll.fullScroll(View.FOCUS_DOWN)
+                    }
                 }
             }
     }

@@ -47,6 +47,14 @@
             android:name=".FriendsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+   
+        
+   <!-- 📩 FRIEND REQUESTS PAGE -->
+        <activity
+            android:name=".FriendRequestsActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+   
     
     </application>
 

@@ -4,17 +4,24 @@ import android.app.Activity
 import android.os.Bundle
 import android.graphics.Color
 import android.view.Gravity
-import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.*
 import android.text.InputType
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 
 class MainActivity : Activity() {
 
-    private val auth by lazy { FirebaseAuth.getInstance() }
-    private val db by lazy { FirebaseFirestore.getInstance() }
+    private val auth: FirebaseAuth by lazy {
+        FirebaseAuth.getInstance()
+    }
+
+    private val db: FirebaseFirestore by lazy {
+        FirebaseFirestore.getInstance()
+    }
 
     private lateinit var root: LinearLayout
     private lateinit var emailInput: EditText
@@ -24,6 +31,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         window.statusBarColor = Color.rgb(15, 23, 42)
         window.navigationBarColor = Color.rgb(15, 23, 42)
 
@@ -34,14 +42,14 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun makeRoot(): LinearLayout {
+    private fun makeRoot() {
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
+            setPadding(20, 16, 20, 16)
             setBackgroundColor(Color.rgb(15, 23, 42))
         }
+
         setContentView(root)
-        return root
     }
 
     private fun addText(
@@ -49,26 +57,29 @@ class MainActivity : Activity() {
         value: String,
         size: Float
     ): TextView {
-        return TextView(this).apply {
+        val textView = TextView(this).apply {
             text = value
             textSize = size
             setTextColor(Color.WHITE)
-            setPadding(4, 12, 4, 12)
-            parent.addView(this)
+            setPadding(4, 10, 4, 10)
         }
+
+        parent.addView(textView)
+        return textView
     }
 
     private fun makeInput(
         hintText: String,
-        inputType: Int
+        inputTypeValue: Int
     ): EditText {
         return EditText(this).apply {
             hint = hintText
-            hintTextColor = Color.LTGRAY
+            setHintTextColor(Color.LTGRAY)
             setTextColor(Color.WHITE)
-            this.inputType = inputType
+            inputType = inputTypeValue
             setSingleLine(true)
             setPadding(14, 10, 14, 10)
+
             backgroundTintList =
                 android.content.res.ColorStateList.valueOf(
                     Color.rgb(100, 116, 139)
@@ -81,10 +92,18 @@ class MainActivity : Activity() {
         label: String,
         action: () -> Unit
     ) {
-        parent.addView(Button(this).apply {
+        val button = Button(this).apply {
             text = label
             setOnClickListener { action() }
-        })
+        }
+
+        parent.addView(
+            button,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
     }
 
     private fun showLogin() {
@@ -101,7 +120,7 @@ class MainActivity : Activity() {
         root.addView(emailInput)
 
         passwordInput = makeInput(
-            "Password (at least 6 characters)",
+            "Password (6+ characters)",
             InputType.TYPE_CLASS_TEXT or
                 InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
@@ -120,8 +139,8 @@ class MainActivity : Activity() {
         val email = emailInput.text.toString().trim()
         val password = passwordInput.text.toString()
 
-        if (email.isEmpty() || password.length < 6) {
-            toast("Enter a valid email and password (6+ characters).")
+        if (email.isBlank() || password.length < 6) {
+            toast("Enter your email and a password of at least 6 characters.")
             return
         }
 
@@ -134,7 +153,7 @@ class MainActivity : Activity() {
         task.addOnSuccessListener {
             showChat()
         }.addOnFailureListener { error ->
-            toast(error.localizedMessage ?: "Authentication failed")
+            toast(error.localizedMessage ?: "Login failed")
         }
     }
 
@@ -146,16 +165,20 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        header.addView(TextView(this).apply {
+        val title = TextView(this).apply {
             text = "ZizzChat"
             textSize = 25f
             setTextColor(Color.WHITE)
-            layoutParams = LinearLayout.LayoutParams(
+        }
+
+        header.addView(
+            title,
+            LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             )
-        })
+        )
 
         header.addView(Button(this).apply {
             text = "Logout"
@@ -174,9 +197,11 @@ class MainActivity : Activity() {
         )
 
         val scrollView = ScrollView(this)
+
         messagesLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
+
         scrollView.addView(messagesLayout)
 
         root.addView(
@@ -196,9 +221,11 @@ class MainActivity : Activity() {
         messageInput = makeInput(
             "Write a message...",
             InputType.TYPE_CLASS_TEXT or
-                InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         )
-        messageInput.maxLines = 3
+
+        messageInput.maxLines = 2
+        messageInput.imeOptions = EditorInfo.IME_ACTION_SEND
 
         composer.addView(
             messageInput,
@@ -211,7 +238,9 @@ class MainActivity : Activity() {
 
         composer.addView(Button(this).apply {
             text = "Send"
-            setOnClickListener { sendMessage() }
+            setOnClickListener {
+                sendMessage()
+            }
         })
 
         root.addView(composer)
@@ -219,7 +248,14 @@ class MainActivity : Activity() {
     }
 
     private fun sendMessage() {
-        val user = auth.currentUser ?: return
+        val user = auth.currentUser
+
+        if (user == null) {
+            toast("Please log in first.")
+            showLogin()
+            return
+        }
+
         val message = messageInput.text.toString().trim()
 
         if (message.isEmpty()) return
@@ -239,7 +275,7 @@ class MainActivity : Activity() {
                 messageInput.text.clear()
             }
             .addOnFailureListener { error ->
-                toast(error.localizedMessage ?: "Message failed")
+                toast(error.localizedMessage ?: "Message could not be sent")
             }
     }
 
@@ -247,11 +283,11 @@ class MainActivity : Activity() {
         db.collection("rooms")
             .document("general")
             .collection("messages")
-            .orderBy("createdAt")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener(this) { snapshot, error ->
 
                 if (error != null) {
-                    toast("Chat error: ${error.localizedMessage}")
+                    toast(error.localizedMessage ?: "Unable to load messages")
                     return@addSnapshotListener
                 }
 
@@ -261,16 +297,30 @@ class MainActivity : Activity() {
                     val email = document.getString("email") ?: "User"
                     val message = document.getString("text") ?: ""
 
-                    addText(
-                        messagesLayout,
-                        "$email\n$message",
-                        15f
+                    val messageView = TextView(this).apply {
+                        text = "$email\n$message"
+                        textSize = 15f
+                        setTextColor(Color.WHITE)
+                        setPadding(12, 12, 12, 12)
+                        setBackgroundColor(Color.rgb(30, 41, 59))
+                    }
+
+                    val params = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
                     )
+
+                    params.setMargins(0, 5, 0, 5)
+                    messagesLayout.addView(messageView, params)
                 }
             }
     }
 
     private fun toast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        Toast.makeText(
+            this,
+            message,
+            Toast.LENGTH_LONG
+        ).show()
     }
 }

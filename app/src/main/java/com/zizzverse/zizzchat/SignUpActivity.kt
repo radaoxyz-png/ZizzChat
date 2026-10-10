@@ -175,7 +175,7 @@ class SignUpActivity : Activity() {
 
         // 📜 SCROLL VIEW — ছোট স্ক্রিনে UI স্ক্রল হবে
         val scrollView = ScrollView(this).apply {
-            fillViewport = true
+            setFillViewport(true)
             isVerticalScrollBarEnabled = false
             addView(root)
         }

@@ -528,6 +528,118 @@ class HomeActivity : Activity() {
         listenForMessages()
     }
 
+
+
+
+    // 👥 LOAD ACCEPTED FRIENDS
+    private fun listenForFriends() {
+        val uid = auth.currentUser?.uid ?: return
+
+        incomingFriendsListener?.remove()
+        outgoingFriendsListener?.remove()
+
+        incomingFriendsListener = db.collection("friendRequests")
+            .whereEqualTo("receiverUid", uid)
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null || snapshot == null) {
+                    showFriendsInfo("Could not load friends.")
+                    return@addSnapshotListener
+                }
+
+                incomingFriends.clear()
+
+                for (doc in snapshot.documents) {
+                    if (doc.getString("status") != "accepted") continue
+
+                    val friendUid = doc.getString("senderUid") ?: continue
+                    val name = doc.getString("senderName") ?: "User"
+                    val email = doc.getString("senderEmail") ?: ""
+
+                    incomingFriends[friendUid] = name to email
+                }
+
+                renderFriends()
+            }
+
+        outgoingFriendsListener = db.collection("friendRequests")
+            .whereEqualTo("senderUid", uid)
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null || snapshot == null) {
+                    showFriendsInfo("Could not load friends.")
+                    return@addSnapshotListener
+                }
+
+                outgoingFriends.clear()
+
+                for (doc in snapshot.documents) {
+                    if (doc.getString("status") != "accepted") continue
+
+                    val friendUid = doc.getString("receiverUid") ?: continue
+                    val name = doc.getString("receiverName") ?: "User"
+                    val email = doc.getString("receiverEmail") ?: ""
+
+                    outgoingFriends[friendUid] = name to email
+                }
+
+                renderFriends()
+            }
+    }
+
+    private fun renderFriends() {
+        friendsLayout.removeAllViews()
+
+        val allFriends = linkedMapOf<String, Pair<String, String>>()
+        allFriends.putAll(incomingFriends)
+        allFriends.putAll(outgoingFriends)
+
+        if (allFriends.isEmpty()) {
+            showFriendsInfo("No friends yet.")
+            return
+        }
+
+        allFriends.values.forEach { friend ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), dp(10), dp(12), dp(10))
+                background = rounded(bg, 12)
+            }
+
+            friendsLayout.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = dp(8)
+                }
+            )
+
+            row.addView(makeText(friend.first, 15f, white, true))
+
+            row.addView(
+                makeText(
+                    if (friend.second.isNotBlank()) friend.second else "Friend",
+                    12f,
+                    muted
+                )
+            )
+        }
+    }
+
+    private fun showFriendsInfo(message: String) {
+        friendsLayout.removeAllViews()
+
+        friendsLayout.addView(
+            makeText(message, 13f, muted).apply {
+                setPadding(0, dp(10), 0, dp(4))
+            }
+        )
+    }
+
+
+    
     // ======================================
     // 📤 SEND MESSAGE TO FIRESTORE
     // ======================================

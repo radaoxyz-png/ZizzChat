@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -35,7 +34,9 @@ fun HomeScreen(navController: NavController) {
     var searchText by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf(listOf<User>()) }
     var friends by remember { mutableStateOf(listOf<User>()) }
-    var incoming by remember { mutableStateOf(listOf<Pair<String, User>>()) }
+    var incoming by remember {
+        mutableStateOf(listOf<Pair<String, User>>())
+    }
     var outgoingIds by remember { mutableStateOf(setOf<String>()) }
     var loading by remember { mutableStateOf(false) }
     var vaultText by remember { mutableStateOf("") }
@@ -49,6 +50,7 @@ fun HomeScreen(navController: NavController) {
         } else {
             val registrations = mutableListOf<ListenerRegistration>()
 
+            // Current user's profile
             registrations += db.collection("users")
                 .document(myUid)
                 .addSnapshotListener { snapshot, _ ->
@@ -56,88 +58,151 @@ fun HomeScreen(navController: NavController) {
                     status = snapshot?.getString("status").orEmpty()
                 }
 
+            // Incoming pending requests
             registrations += db.collection("friendRequests")
                 .whereEqualTo("receiverId", myUid)
                 .whereEqualTo("status", "pending")
-                .addSnapshotListener { snapshot, _ ->
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Toast.makeText(
+                            context,
+                            error.localizedMessage ?: "Requests failed to load",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@addSnapshotListener
+                    }
+
                     val requests = snapshot?.documents.orEmpty()
+                    val validIds = requests.map { it.id }.toSet()
+
+                    incoming = incoming.filter { it.first in validIds }
+
                     requests.forEach { request ->
-                        val senderId = request.getString("senderId").orEmpty()
+                        val senderId =
+                            request.getString("senderId").orEmpty()
+
                         if (senderId.isNotBlank()) {
-                            db.collection("users").document(senderId)
+                            db.collection("users")
+                                .document(senderId)
                                 .get()
                                 .addOnSuccessListener { userDoc ->
-                                    val user = userDoc.toObject(User::class.java)
+                                    val user =
+                                        userDoc.toObject(User::class.java)
+
                                     if (user != null) {
-                                        incoming = (incoming.filterNot {
-                                            it.first == request.id
-                                        } + (request.id to user))
+                                        incoming = (
+                                            incoming.filterNot {
+                                                it.first == request.id
+                                            } + (request.id to user)
+                                        )
                                     }
                                 }
                         }
                     }
-                    val validIds = requests.map { it.id }.toSet()
-                    incoming = incoming.filter { it.first in validIds }
                 }
 
+            // Outgoing pending requests
             registrations += db.collection("friendRequests")
                 .whereEqualTo("senderId", myUid)
                 .whereEqualTo("status", "pending")
-                .addSnapshotListener { snapshot, _ ->
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Toast.makeText(
+                            context,
+                            error.localizedMessage
+                                ?: "Outgoing requests failed to load",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@addSnapshotListener
+                    }
+
                     outgoingIds = snapshot?.documents.orEmpty()
                         .mapNotNull { it.getString("receiverId") }
                         .toSet()
                 }
 
+            // Accepted requests sent by current user
             registrations += db.collection("friendRequests")
+                .whereEqualTo("senderId", myUid)
                 .whereEqualTo("status", "accepted")
-                .addSnapshotListener { snapshot, _ ->
-                    val accepted = snapshot?.documents.orEmpty()
-                        .filter {
-                            it.getString("senderId") == myUid ||
-                            it.getString("receiverId") == myUid
-                        }
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Toast.makeText(
+                            context,
+                            error.localizedMessage ?: "Friends failed to load",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@addSnapshotListener
+                    }
 
-                    accepted.forEach { request ->
-                        val otherId = if (
-                            request.getString("senderId") == myUid
-                        ) {
-                            request.getString("receiverId").orEmpty()
-                        } else {
-                            request.getString("senderId").orEmpty()
-                        }
+                    snapshot?.documents.orEmpty().forEach { doc ->
+                        val friendId =
+                            doc.getString("receiverId").orEmpty()
 
-                        if (otherId.isNotBlank()) {
-                            db.collection("users").document(otherId)
+                        if (friendId.isNotBlank()) {
+                            db.collection("users")
+                                .document(friendId)
                                 .get()
                                 .addOnSuccessListener { userDoc ->
-                                    val user = userDoc.toObject(User::class.java)
+                                    val user =
+                                        userDoc.toObject(User::class.java)
+
                                     if (user != null) {
-                                        friends = (friends.filterNot {
-                                            it.uid == user.uid
-                                        } + user).distinctBy { it.uid }
+                                        friends = (
+                                            friends.filterNot {
+                                                it.uid == user.uid
+                                            } + user
+                                        ).distinctBy { it.uid }
                                     }
                                 }
                         }
                     }
-
-                    val ids = accepted.mapNotNull {
-                        if (it.getString("senderId") == myUid) {
-                            it.getString("receiverId")
-                        } else {
-                            it.getString("senderId")
-                        }
-                    }.toSet()
-
-                    friends = friends.filter { it.uid in ids }
                 }
 
+            // Accepted requests received by current user
+            registrations += db.collection("friendRequests")
+                .whereEqualTo("receiverId", myUid)
+                .whereEqualTo("status", "accepted")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Toast.makeText(
+                            context,
+                            error.localizedMessage ?: "Friends failed to load",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@addSnapshotListener
+                    }
+
+                    snapshot?.documents.orEmpty().forEach { doc ->
+                        val friendId =
+                            doc.getString("senderId").orEmpty()
+
+                        if (friendId.isNotBlank()) {
+                            db.collection("users")
+                                .document(friendId)
+                                .get()
+                                .addOnSuccessListener { userDoc ->
+                                    val user =
+                                        userDoc.toObject(User::class.java)
+
+                                    if (user != null) {
+                                        friends = (
+                                            friends.filterNot {
+                                                it.uid == user.uid
+                                            } + user
+                                        ).distinctBy { it.uid }
+                                    }
+                                }
+                        }
+                    }
+                }
+
+            // Vault notes
             registrations += db.collection("vault")
                 .whereEqualTo("ownerId", myUid)
                 .addSnapshotListener { snapshot, _ ->
-                    savedVault = snapshot?.documents.orEmpty().mapNotNull {
-                        it.getString("text")
-                    }
+                    savedVault = snapshot?.documents.orEmpty()
+                        .mapNotNull { it.getString("text") }
                 }
 
             onDispose {
@@ -148,25 +213,36 @@ fun HomeScreen(navController: NavController) {
 
     fun searchUsers() {
         val query = searchText.trim()
+
         if (query.isBlank()) {
             searchResults = emptyList()
             return
         }
 
         loading = true
-        db.collection("users").get()
+
+        db.collection("users")
+            .get()
             .addOnSuccessListener { snapshot ->
-                searchResults = snapshot.documents.mapNotNull {
-                    it.toObject(User::class.java)
-                }.filter { user ->
-                    user.uid != myUid &&
-                    (
-                        user.name.contains(query, ignoreCase = true) ||
-                        user.email.contains(query, ignoreCase = true) ||
-                        user.uid == query
-                    )
-                }
+                searchResults = snapshot.documents
+                    .mapNotNull { it.toObject(User::class.java) }
+                    .filter { user ->
+                        user.uid != myUid && (
+                            user.name.contains(query, ignoreCase = true) ||
+                            user.email.contains(query, ignoreCase = true) ||
+                            user.uid == query
+                        )
+                    }
+
                 loading = false
+
+                if (searchResults.isEmpty()) {
+                    Toast.makeText(
+                        context,
+                        "No users found",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
             .addOnFailureListener { error ->
                 loading = false
@@ -178,58 +254,79 @@ fun HomeScreen(navController: NavController) {
             }
     }
 
-    
     fun sendRequest(user: User) {
-    if (myUid.isBlank() || user.uid.isBlank() || myUid == user.uid) {
-        Toast.makeText(
-            context,
-            "Invalid user",
-            Toast.LENGTH_SHORT
-        ).show()
-        return
-    }
-
-    val requestRef = db.collection("friendRequests").document()
-
-    val request = hashMapOf(
-        "requestId" to requestRef.id,
-        "senderId" to myUid,
-        "receiverId" to user.uid,
-        "status" to "pending",
-        "timestamp" to System.currentTimeMillis()
-    )
-
-    requestRef.set(request)
-        .addOnSuccessListener {
+        if (myUid.isBlank() || user.uid.isBlank() || myUid == user.uid) {
             Toast.makeText(
                 context,
-                "Friend request sent!",
+                "Invalid user",
                 Toast.LENGTH_SHORT
             ).show()
+            return
         }
-        .addOnFailureListener { error ->
+
+        if (friends.any { it.uid == user.uid } ||
+            outgoingIds.contains(user.uid)
+        ) {
             Toast.makeText(
                 context,
-                "Request failed: ${error.localizedMessage}",
-                Toast.LENGTH_LONG
+                "Request already sent or already friends",
+                Toast.LENGTH_SHORT
             ).show()
+            return
         }
-    }
 
-    fun answerRequest(requestId: String, accept: Boolean) {
-        db.collection("friendRequests").document(requestId)
-            .update("status", if (accept) "accepted" else "rejected")
+        val requestRef = db.collection("friendRequests").document()
+
+        val request = hashMapOf(
+            "requestId" to requestRef.id,
+            "senderId" to myUid,
+            "receiverId" to user.uid,
+            "status" to "pending",
+            "timestamp" to System.currentTimeMillis()
+        )
+
+        requestRef.set(request)
             .addOnSuccessListener {
-                incoming = incoming.filterNot { it.first == requestId }
                 Toast.makeText(
                     context,
-                    if (accept) "Friend added" else "Request rejected",
+                    "Friend request sent!",
                     Toast.LENGTH_SHORT
                 ).show()
             }
-            .addOnFailureListener {
-                Toast.makeText(context, it.localizedMessage ?: "Action failed", Toast.LENGTH_LONG).show()
+            .addOnFailureListener { error ->
+                Toast.makeText(
+                    context,
+                    "Request failed: ${
+                        error.localizedMessage ?: "Permission denied"
+                    }",
+                    Toast.LENGTH_LONG
+                ).show()
             }
+    }
+
+    fun answerRequest(requestId: String, accept: Boolean) {
+        val requestRef =
+            db.collection("friendRequests").document(requestId)
+
+        requestRef.update(
+            "status",
+            if (accept) "accepted" else "rejected"
+        ).addOnSuccessListener {
+            incoming = incoming.filterNot { it.first == requestId }
+
+            Toast.makeText(
+                context,
+                if (accept) "Friend request accepted"
+                else "Friend request rejected",
+                Toast.LENGTH_SHORT
+            ).show()
+        }.addOnFailureListener { error ->
+            Toast.makeText(
+                context,
+                error.localizedMessage ?: "Action failed",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     Scaffold(
@@ -238,7 +335,8 @@ fun HomeScreen(navController: NavController) {
                 title = { Text("ZizzChat") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    titleContentColor =
+                        MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
@@ -247,25 +345,36 @@ fun HomeScreen(navController: NavController) {
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Chat, contentDescription = "Chats") },
+                    icon = {
+                        Icon(Icons.Default.Chat, contentDescription = "Chats")
+                    },
                     label = { Text("Chats") }
                 )
+
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.People, contentDescription = "Friends") },
+                    icon = {
+                        Icon(Icons.Default.People, contentDescription = "Friends")
+                    },
                     label = { Text("Friends") }
                 )
+
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Lock, contentDescription = "Vault") },
+                    icon = {
+                        Icon(Icons.Default.Lock, contentDescription = "Vault")
+                    },
                     label = { Text("Vault") }
                 )
+
                 NavigationBarItem(
                     selected = selectedTab == 3,
                     onClick = { selectedTab = 3 },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                    icon = {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    },
                     label = { Text("Settings") }
                 )
             }
@@ -279,7 +388,10 @@ fun HomeScreen(navController: NavController) {
         ) {
             when (selectedTab) {
                 0 -> {
-                    Text("Chats", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Chats",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                     Spacer(Modifier.height(12.dp))
 
                     if (friends.isEmpty()) {
@@ -291,9 +403,14 @@ fun HomeScreen(navController: NavController) {
                                     headlineContent = {
                                         Text(friend.name.ifBlank { friend.email })
                                     },
-                                    supportingContent = { Text("Tap to open chat") },
+                                    supportingContent = {
+                                        Text("Tap to open chat")
+                                    },
                                     leadingContent = {
-                                        Icon(Icons.Default.People, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.People,
+                                            contentDescription = null
+                                        )
                                     },
                                     modifier = Modifier.clickable {
                                         navController.navigate("chat/${friend.uid}")
@@ -306,7 +423,10 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 1 -> {
-                    Text("Friends", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Friends",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                     Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
@@ -316,7 +436,9 @@ fun HomeScreen(navController: NavController) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Spacer(Modifier.height(8.dp))
+
                     Button(
                         onClick = { searchUsers() },
                         enabled = !loading,
@@ -325,21 +447,33 @@ fun HomeScreen(navController: NavController) {
                         Text(if (loading) "Searching..." else "Search Users")
                     }
 
-                    LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
                         items(searchResults, key = { it.uid }) { user ->
                             ListItem(
                                 headlineContent = {
                                     Text(user.name.ifBlank { "ZizzChat User" })
                                 },
-                                supportingContent = { Text(user.email) },
+                                supportingContent = {
+                                    Text(user.email)
+                                },
                                 trailingContent = {
-                                    if (friends.any { it.uid == user.uid }) {
-                                        Text("Friends")
-                                    } else if (outgoingIds.contains(user.uid)) {
-                                        Text("Sent")
-                                    } else {
-                                        TextButton(onClick = { sendRequest(user) }) {
-                                            Text("Add")
+                                    when {
+                                        friends.any { it.uid == user.uid } -> {
+                                            Text("Friends")
+                                        }
+
+                                        outgoingIds.contains(user.uid) -> {
+                                            Text("Sent")
+                                        }
+
+                                        else -> {
+                                            TextButton(
+                                                onClick = { sendRequest(user) }
+                                            ) {
+                                                Text("Add")
+                                            }
                                         }
                                     }
                                 }
@@ -349,34 +483,59 @@ fun HomeScreen(navController: NavController) {
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    Text("Friend Requests (${incoming.size})",
-                        style = MaterialTheme.typography.titleMedium)
 
-                    LazyColumn {
+                    Text(
+                        "Friend Requests (${incoming.size})",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
                         items(incoming, key = { it.first }) { item ->
                             val (requestId, user) = item
+
                             ListItem(
                                 headlineContent = {
                                     Text(user.name.ifBlank { user.email })
                                 },
-                                supportingContent = { Text("Wants to be your friend") },
+                                supportingContent = {
+                                    Text("Wants to be your friend")
+                                },
                                 trailingContent = {
                                     Row {
                                         TextButton(
-                                            onClick = { answerRequest(requestId, true) }
-                                        ) { Text("Accept") }
+                                            onClick = {
+                                                answerRequest(requestId, true)
+                                            }
+                                        ) {
+                                            Text("Accept")
+                                        }
+
                                         TextButton(
-                                            onClick = { answerRequest(requestId, false) }
-                                        ) { Text("Reject") }
+                                            onClick = {
+                                                answerRequest(requestId, false)
+                                            }
+                                        ) {
+                                            Text("Reject")
+                                        }
                                     }
                                 }
                             )
+                            HorizontalDivider()
                         }
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    Text("Friends List", style = MaterialTheme.typography.titleMedium)
-                    LazyColumn {
+
+                    Text(
+                        "Friends List",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
                         items(friends, key = { it.uid }) { friend ->
                             ListItem(
                                 headlineContent = {
@@ -387,15 +546,21 @@ fun HomeScreen(navController: NavController) {
                                         onClick = {
                                             navController.navigate("chat/${friend.uid}")
                                         }
-                                    ) { Text("Chat") }
+                                    ) {
+                                        Text("Chat")
+                                    }
                                 }
                             )
+                            HorizontalDivider()
                         }
                     }
                 }
 
                 2 -> {
-                    Text("Vault", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Vault",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                     Text("Private notes saved to your account.")
                     Spacer(Modifier.height(12.dp))
 
@@ -406,28 +571,45 @@ fun HomeScreen(navController: NavController) {
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3
                     )
+
                     Spacer(Modifier.height(8.dp))
+
                     Button(
                         onClick = {
                             if (myUid.isNotBlank() && vaultText.isNotBlank()) {
-                                db.collection("vault").add(
-                                    mapOf(
-                                        "ownerId" to myUid,
-                                        "text" to vaultText.trim(),
-                                        "createdAt" to System.currentTimeMillis()
+                                db.collection("vault")
+                                    .add(
+                                        mapOf(
+                                            "ownerId" to myUid,
+                                            "text" to vaultText.trim(),
+                                            "createdAt" to
+                                                System.currentTimeMillis()
+                                        )
                                     )
-                                ).addOnSuccessListener {
-                                    vaultText = ""
-                                    Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
-                                }.addOnFailureListener {
-                                    Toast.makeText(context, it.localizedMessage ?: "Save failed", Toast.LENGTH_LONG).show()
-                                }
+                                    .addOnSuccessListener {
+                                        vaultText = ""
+                                        Toast.makeText(
+                                            context,
+                                            "Note saved",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    .addOnFailureListener { error ->
+                                        Toast.makeText(
+                                            context,
+                                            error.localizedMessage ?: "Save failed",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Save Note") }
+                    ) {
+                        Text("Save Note")
+                    }
 
                     Spacer(Modifier.height(12.dp))
+
                     LazyColumn {
                         items(savedVault) { note ->
                             ListItem(headlineContent = { Text(note) })
@@ -437,13 +619,21 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 3 -> {
-                    Text("Settings", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Settings",
+                        style = MaterialTheme.typography.titleLarge
+                    )
                     Spacer(Modifier.height(12.dp))
+
                     Text("Name: $username")
                     Text("Email: ${auth.currentUser?.email.orEmpty()}")
-                    if (status.isNotBlank()) Text("Status: $status")
+
+                    if (status.isNotBlank()) {
+                        Text("Status: $status")
+                    }
 
                     Spacer(Modifier.height(16.dp))
+
                     Button(
                         onClick = {
                             auth.signOut()

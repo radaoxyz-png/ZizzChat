@@ -432,7 +432,7 @@ class ChatActivity : Activity() {
                 if (isMine) outgoingColor else incomingColor,
                 12
             )
-            maxWidth = (resources.displayMetrics.widthPixels * 0.78f).toInt()
+            
         }
 
         bubble.addView(

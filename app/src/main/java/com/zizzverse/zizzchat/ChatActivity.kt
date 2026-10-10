@@ -1,228 +1,91 @@
 package com.zizzverse.zizzchat
 
-import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
-import android.app.Activity
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class ChatActivity : Activity() {
+class ChatAdapter(
+    private val messages: List<ChatMessage>
+) : RecyclerView.Adapter<ChatAdapter.MessageViewHolder>() {
 
-    private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
+    class MessageViewHolder(itemView: View) :
+        RecyclerView.ViewHolder(itemView) {
 
-    private lateinit var myUid: String
-    private lateinit var friendUid: String
-    private lateinit var friendName: String
-    private lateinit var roomId: String
+        val row: LinearLayout =
+            itemView.findViewById(R.id.messageRow)
 
-    private lateinit var chatRecyclerView: RecyclerView
-    private lateinit var messageInput: EditText
-    private lateinit var sendButton: Button
-    private lateinit var chatTitle: TextView
+        val bubble: LinearLayout =
+            itemView.findViewById(R.id.messageBubble)
 
-    private val messages = mutableListOf<ChatMessage>()
-    private lateinit var adapter: ChatAdapter
+        val messageText: TextView =
+            itemView.findViewById(R.id.messageText)
 
-    private var messageListener: ListenerRegistration? = null
-    private var roomReady = false
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_chat)
-
-        val user = auth.currentUser
-        if (user == null) {
-            showError("Please login first")
-            finish()
-            return
-        }
-
-        myUid = user.uid
-        friendUid = intent.getStringExtra("friendUid") ?: ""
-        friendName = intent.getStringExtra("friendName") ?: "Friend"
-
-        if (friendUid.isBlank() || friendUid == myUid) {
-            showError("Invalid friend account")
-            finish()
-            return
-        }
-
-        roomId = listOf(myUid, friendUid)
-            .sorted()
-            .joinToString("_")
-
-        chatRecyclerView = findViewById(R.id.chatRecyclerView)
-        messageInput = findViewById(R.id.messageInput)
-        sendButton = findViewById(R.id.sendButton)
-        chatTitle = findViewById(R.id.chatTitle)
-
-        chatTitle.text = friendName
-
-        adapter = ChatAdapter(messages)
-        chatRecyclerView.layoutManager =
-            LinearLayoutManager(this).apply {
-                stackFromEnd = true
-            }
-        chatRecyclerView.adapter = adapter
-
-        sendButton.isEnabled = false
-
-        sendButton.setOnClickListener {
-            sendMessage()
-        }
-
-        prepareChatRoom()
+        val messageTime: TextView =
+            itemView.findViewById(R.id.messageTime)
     }
 
-    private fun prepareChatRoom() {
-        val roomRef = db.collection("privateChats")
-            .document(roomId)
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): MessageViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_message, parent, false)
 
-        roomRef.get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val participants =
-                        document.get("participants") as? List<*>
-
-                    if (participants?.contains(myUid) != true ||
-                        participants.contains(friendUid).not()
-                    ) {
-                        showError("Chat room participants are incorrect")
-                        return@addOnSuccessListener
-                    }
-
-                    roomReady = true
-                    sendButton.isEnabled = true
-                    listenForMessages()
-                } else {
-                    val roomData = hashMapOf(
-                        "participants" to
-                            listOf(myUid, friendUid).sorted(),
-                        "createdAt" to FieldValue.serverTimestamp(),
-                        "updatedAt" to FieldValue.serverTimestamp()
-                    )
-
-                    roomRef.set(roomData)
-                        .addOnSuccessListener {
-                            roomReady = true
-                            sendButton.isEnabled = true
-                            listenForMessages()
-                        }
-                        .addOnFailureListener { error ->
-                            showError(
-                                "Chat setup failed: ${error.message}"
-                            )
-                        }
-                }
-            }
-            .addOnFailureListener { error ->
-                showError("Chat access failed: ${error.message}")
-            }
+        return MessageViewHolder(view)
     }
 
-    private fun listenForMessages() {
-        messageListener?.remove()
+    override fun onBindViewHolder(
+        holder: MessageViewHolder,
+        position: Int
+    ) {
+        val message = messages[position]
+        val currentUid = FirebaseAuth.getInstance()
+            .currentUser?.uid
 
-        messageListener = db.collection("privateChats")
-            .document(roomId)
-            .collection("messages")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .limitToLast(100)
-            .addSnapshotListener { snapshot, error ->
+        val isMine = message.senderUid == currentUid
 
-                if (error != null) {
-                    showError("Message load failed: ${error.message}")
-                    return@addSnapshotListener
-                }
+        holder.messageText.text = message.text
 
-                if (snapshot == null) return@addSnapshotListener
+        holder.row.gravity = if (isMine) {
+            Gravity.END
+        } else {
+            Gravity.START
+        }
 
-                messages.clear()
-
-                for (document in snapshot.documents) {
-                    val message =
-                        document.toObject(ChatMessage::class.java)
-
-                    if (message != null) {
-                        messages.add(message)
-                    }
-                }
-
-                adapter.notifyDataSetChanged()
-
-                if (messages.isNotEmpty()) {
-                    chatRecyclerView.scrollToPosition(
-                        messages.size - 1
-                    )
-                }
+        holder.bubble.setBackgroundResource(
+            if (isMine) {
+                R.drawable.message_out_bg
+            } else {
+                R.drawable.message_in_bg
             }
-    }
-
-    private fun sendMessage() {
-        if (!roomReady) {
-            showError("Chat is not ready yet")
-            return
-        }
-
-        val text = messageInput.text.toString().trim()
-
-        if (text.isEmpty()) return
-
-        if (text.length > 2000) {
-            showError("Message is too long")
-            return
-        }
-
-        sendButton.isEnabled = false
-
-        val messageData = hashMapOf(
-            "senderUid" to myUid,
-            "receiverUid" to friendUid,
-            "text" to text,
-            "timestamp" to FieldValue.serverTimestamp()
         )
 
-        db.collection("privateChats")
-            .document(roomId)
-            .collection("messages")
-            .add(messageData)
-            .addOnSuccessListener {
-                messageInput.text.clear()
-                sendButton.isEnabled = true
+        val date = message.timestamp?.toDate()
+
+        holder.messageTime.text = if (date != null) {
+            SimpleDateFormat(
+                "HH:mm",
+                Locale.getDefault()
+            ).format(date) + if (isMine) "  ✓✓" else ""
+        } else {
+            ""
+        }
+
+        holder.messageTime.setTextColor(
+            if (isMine) {
+                0xFF9DE3D2.toInt()
+            } else {
+                0xFFAEB7BC.toInt()
             }
-            .addOnFailureListener { error ->
-                sendButton.isEnabled = true
-                showError("Send failed: ${error.message}")
-            }
+        )
     }
 
-    private fun showError(message: String) {
-        Toast.makeText(
-            this,
-            message,
-            Toast.LENGTH_LONG
-        ).show()
-    }
-
-    override fun onDestroy() {
-        messageListener?.remove()
-        super.onDestroy()
-    }
+    override fun getItemCount(): Int = messages.size
 }
-
-data class ChatMessage(
-    val senderUid: String = "",
-    val receiverUid: String = "",
-    val text: String = "",
-    val timestamp: Timestamp? = null
-)

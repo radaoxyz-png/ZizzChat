@@ -449,55 +449,39 @@ class FriendsActivity : Activity() {
         val requestRef = db.collection("friendRequests")
             .document(requestId)
 
-        // 🔍 CHECK WHETHER REQUEST ALREADY EXISTS
-        requestRef.get()
-            .addOnSuccessListener { existing ->
+        // 🔐 FRIEND REQUEST — SAVE WITHOUT PRE-READ
+        val data = hashMapOf(
+            "senderUid" to currentUser.uid,
+            "senderEmail" to (currentUser.email ?: ""),
+            "senderName" to (
+                currentUser.displayName
+                    ?: currentUser.email
+                    ?: "User"
+            ),
+            "receiverUid" to receiverUid,
+            "receiverName" to receiverName,
+            "status" to "pending",
+            "createdAt" to System.currentTimeMillis()
+        )
 
-                if (existing.exists()) {
-                    Toast.makeText(
-                        this,
-                        "A request already exists",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@addOnSuccessListener
-                }
-
-                // 📦 FRIEND REQUEST DATA
-                val data = hashMapOf(
-                    "senderUid" to currentUser.uid,
-                    "senderEmail" to (currentUser.email ?: ""),
-                    "senderName" to (currentUser.displayName ?: currentUser.email ?: "User"),
-                    "receiverUid" to receiverUid,
-                    "receiverName" to receiverName,
-                    "status" to "pending",
-                    "createdAt" to System.currentTimeMillis()
-                )
-
-                // 🔥 SAVE FRIEND REQUEST
-                requestRef.set(data)
-                    .addOnSuccessListener {
-                        Toast.makeText(
-                            this,
-                            "Friend request sent!",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    .addOnFailureListener { error ->
-                        Toast.makeText(
-                            this,
-                            error.localizedMessage
-                                ?: "Could not send request",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+        // 📤 SAVE REQUEST DIRECTLY
+        requestRef.set(data)
+            .addOnSuccessListener {
+                Toast.makeText(
+                    this,
+                    "Friend request sent!",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
             .addOnFailureListener { error ->
                 Toast.makeText(
                     this,
-                    error.localizedMessage ?: "Could not check request",
+                    error.localizedMessage
+                        ?: "Could not send request",
                     Toast.LENGTH_LONG
                 ).show()
             }
+            
     }
 
     // 📝 SHOW MESSAGE IN RESULTS AREA

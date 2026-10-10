@@ -1,3 +1,4 @@
+
 package com.zizzverse.zizzchat.ui.chat
 
 import androidx.compose.foundation.layout.*
@@ -18,29 +19,24 @@ import com.zizzverse.zizzchat.data.model.Message
 @Composable
 fun ChatScreen(navController: NavController, userId: String?) {
     var textState by remember { mutableStateOf("") }
-    val dummyMessages = remember { mutableStateListOf<Message>() }
+    val messages = remember { mutableStateListOf<Message>() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(text = "User: ${userId ?: "Unknown"}")
-                        Text(
-                            text = "Online",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
+                    Text("User: ${userId ?: "Unknown"}")
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(
+                        onClick = { navController.popBackStack() }
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                }
             )
         },
         bottomBar = {
@@ -54,18 +50,20 @@ fun ChatScreen(navController: NavController, userId: String?) {
                     value = textState,
                     onValueChange = { textState = it },
                     placeholder = { Text("Type a message...") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    maxLines = 4
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+
                 IconButton(
                     onClick = {
                         if (textState.isNotBlank()) {
-                            dummyMessages.add(
+                            messages.add(
                                 Message(
-                                    messageId = System.currentTimeMillis().toString(),
+                                    messageId =
+                                        System.currentTimeMillis().toString(),
                                     senderId = "me",
                                     receiverId = userId ?: "",
-                                    messageText = textState,
+                                    messageText = textState.trim(),
                                     timestamp = System.currentTimeMillis()
                                 )
                             )
@@ -73,7 +71,10 @@ fun ChatScreen(navController: NavController, userId: String?) {
                         }
                     }
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send"
+                    )
                 }
             }
         }
@@ -81,3 +82,16 @@ fun ChatScreen(navController: NavController, userId: String?) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 12.dp),
+            reverseLayout = false
+        ) {
+            items(messages) { message ->
+                Text(
+                    text = message.messageText,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+        }
+    }
+}

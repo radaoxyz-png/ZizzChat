@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import com.zizzverse.zizzchat.ui.auth.LoginScreen
 import com.zizzverse.zizzchat.ui.auth.SignupScreen
 import com.zizzverse.zizzchat.ui.chat.ChatScreen
@@ -43,9 +44,13 @@ fun ZizzChatApp() {
 fun AppNavigation() {
     val navController = rememberNavController()
 
+    // Check if user is already logged in
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val startDestination = if (currentUser != null) "home" else "login"
+
     NavHost(
         navController = navController,
-        startDestination = "login"
+        startDestination = startDestination
     ) {
         composable("login") {
             LoginScreen(navController)

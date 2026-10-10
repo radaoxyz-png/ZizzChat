@@ -526,6 +526,7 @@ class HomeActivity : Activity() {
 
         // 🔥 START FIRESTORE MESSAGE LISTENER
         listenForMessages()
+        listenForFriends()
     }
 
 

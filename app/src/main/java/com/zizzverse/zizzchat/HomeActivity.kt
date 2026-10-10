@@ -55,6 +55,23 @@ class HomeActivity : Activity() {
     // 🌟 EMPTY CHAT MESSAGE
     private lateinit var emptyState: TextView
 
+
+    // 👥 FRIENDS LIST
+    private lateinit var friendsLayout: LinearLayout
+
+    private var incomingFriendsListener:
+        com.google.firebase.firestore.ListenerRegistration? = null
+
+    private var outgoingFriendsListener:
+        com.google.firebase.firestore.ListenerRegistration? = null
+
+    private val incomingFriends =
+        linkedMapOf<String, Pair<String, String>>()
+
+    private val outgoingFriends =
+        linkedMapOf<String, Pair<String, String>>()
+
+        
     // 📡 FIRESTORE LISTENER
     private var messageListener:
         com.google.firebase.firestore.ListenerRegistration? = null

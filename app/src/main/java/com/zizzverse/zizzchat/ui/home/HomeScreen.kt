@@ -1,5 +1,6 @@
 package com.zizzverse.zizzchat.ui.home
 
+//========== IMPORTS START ==========
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,10 +21,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.zizzverse.zizzchat.data.model.User
+//========== IMPORTS END ==========
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
+
+    //========== STATE VARIABLES START ==========
     var selectedTab by remember { mutableIntStateOf(0) }
 
     val context = LocalContext.current
@@ -39,30 +43,37 @@ fun HomeScreen(navController: NavController) {
     }
     var outgoingIds by remember { mutableStateOf(setOf<String>()) }
     var loading by remember { mutableStateOf(false) }
+
     var vaultText by remember { mutableStateOf("") }
     var savedVault by remember { mutableStateOf(listOf<String>()) }
     var username by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
+    //========== STATE VARIABLES END ==========
 
+
+    //========== FIREBASE LISTENERS START ==========
     DisposableEffect(myUid) {
         if (myUid.isBlank()) {
             onDispose { }
         } else {
             val registrations = mutableListOf<ListenerRegistration>()
 
-            // Current user's profile
+            //========== MY PROFILE LISTENER START ==========
             registrations += db.collection("users")
                 .document(myUid)
                 .addSnapshotListener { snapshot, _ ->
                     username = snapshot?.getString("name").orEmpty()
                     status = snapshot?.getString("status").orEmpty()
                 }
+            //========== MY PROFILE LISTENER END ==========
 
-            // Incoming pending requests
+
+            //========== INCOMING REQUESTS LISTENER START ==========
             registrations += db.collection("friendRequests")
                 .whereEqualTo("receiverId", myUid)
                 .whereEqualTo("status", "pending")
                 .addSnapshotListener { snapshot, error ->
+
                     if (error != null) {
                         Toast.makeText(
                             context,
@@ -100,12 +111,15 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
+            //========== INCOMING REQUESTS LISTENER END ==========
 
-            // Outgoing pending requests
+
+            //========== OUTGOING REQUESTS LISTENER START ==========
             registrations += db.collection("friendRequests")
                 .whereEqualTo("senderId", myUid)
                 .whereEqualTo("status", "pending")
                 .addSnapshotListener { snapshot, error ->
+
                     if (error != null) {
                         Toast.makeText(
                             context,
@@ -120,12 +134,15 @@ fun HomeScreen(navController: NavController) {
                         .mapNotNull { it.getString("receiverId") }
                         .toSet()
                 }
+            //========== OUTGOING REQUESTS LISTENER END ==========
 
-            // Accepted requests sent by current user
+
+            //========== ACCEPTED REQUESTS SENT BY ME START ==========
             registrations += db.collection("friendRequests")
                 .whereEqualTo("senderId", myUid)
                 .whereEqualTo("status", "accepted")
                 .addSnapshotListener { snapshot, error ->
+
                     if (error != null) {
                         Toast.makeText(
                             context,
@@ -158,12 +175,15 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
+            //========== ACCEPTED REQUESTS SENT BY ME END ==========
 
-            // Accepted requests received by current user
+
+            //========== ACCEPTED REQUESTS RECEIVED BY ME START ==========
             registrations += db.collection("friendRequests")
                 .whereEqualTo("receiverId", myUid)
                 .whereEqualTo("status", "accepted")
                 .addSnapshotListener { snapshot, error ->
+
                     if (error != null) {
                         Toast.makeText(
                             context,
@@ -196,21 +216,30 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
+            //========== ACCEPTED REQUESTS RECEIVED BY ME END ==========
 
-            // Vault notes
+
+            //========== VAULT LISTENER START ==========
             registrations += db.collection("vault")
                 .whereEqualTo("ownerId", myUid)
                 .addSnapshotListener { snapshot, _ ->
                     savedVault = snapshot?.documents.orEmpty()
                         .mapNotNull { it.getString("text") }
                 }
+            //========== VAULT LISTENER END ==========
 
+
+            //========== DO NOT DELETE: CLEANUP LISTENERS ==========
             onDispose {
                 registrations.forEach { it.remove() }
             }
+            //========== CLEANUP LISTENERS END ==========
         }
     }
+    //========== FIREBASE LISTENERS END ==========
 
+
+    //========== SEARCH USERS FUNCTION START ==========
     fun searchUsers() {
         val query = searchText.trim()
 
@@ -224,6 +253,7 @@ fun HomeScreen(navController: NavController) {
         db.collection("users")
             .get()
             .addOnSuccessListener { snapshot ->
+
                 searchResults = snapshot.documents
                     .mapNotNull { it.toObject(User::class.java) }
                     .filter { user ->
@@ -253,7 +283,10 @@ fun HomeScreen(navController: NavController) {
                 ).show()
             }
     }
+    //========== SEARCH USERS FUNCTION END ==========
 
+
+    //========== SEND FRIEND REQUEST FUNCTION START ==========
     fun sendRequest(user: User) {
         if (myUid.isBlank() || user.uid.isBlank() || myUid == user.uid) {
             Toast.makeText(
@@ -303,33 +336,42 @@ fun HomeScreen(navController: NavController) {
                 ).show()
             }
     }
+    //========== SEND FRIEND REQUEST FUNCTION END ==========
 
+
+    //========== ACCEPT / REJECT REQUEST FUNCTION START ==========
     fun answerRequest(requestId: String, accept: Boolean) {
-        val requestRef =
-            db.collection("friendRequests").document(requestId)
+        db.collection("friendRequests")
+            .document(requestId)
+            .update(
+                "status",
+                if (accept) "accepted" else "rejected"
+            )
+            .addOnSuccessListener {
+                incoming = incoming.filterNot { it.first == requestId }
 
-        requestRef.update(
-            "status",
-            if (accept) "accepted" else "rejected"
-        ).addOnSuccessListener {
-            incoming = incoming.filterNot { it.first == requestId }
-
-            Toast.makeText(
-                context,
-                if (accept) "Friend request accepted"
-                else "Friend request rejected",
-                Toast.LENGTH_SHORT
-            ).show()
-        }.addOnFailureListener { error ->
-            Toast.makeText(
-                context,
-                error.localizedMessage ?: "Action failed",
-                Toast.LENGTH_LONG
-            ).show()
-        }
+                Toast.makeText(
+                    context,
+                    if (accept) "Friend request accepted"
+                    else "Friend request rejected",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .addOnFailureListener { error ->
+                Toast.makeText(
+                    context,
+                    error.localizedMessage ?: "Action failed",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
     }
+    //========== ACCEPT / REJECT REQUEST FUNCTION END ==========
 
+
+    //========== MAIN SCAFFOLD START ==========
     Scaffold(
+
+        //========== TOP BAR START ==========
         topBar = {
             TopAppBar(
                 title = { Text("ZizzChat") },
@@ -340,8 +382,13 @@ fun HomeScreen(navController: NavController) {
                 )
             )
         },
+        //========== TOP BAR END ==========
+
+
+        //========== BOTTOM NAVIGATION START ==========
         bottomBar = {
             NavigationBar {
+
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -379,19 +426,26 @@ fun HomeScreen(navController: NavController) {
                 )
             }
         }
+        //========== BOTTOM NAVIGATION END ==========
+
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
+
             when (selectedTab) {
+
+                //========== CHATS TAB START ==========
                 0 -> {
                     Text(
                         "Chats",
                         style = MaterialTheme.typography.titleLarge
                     )
+
                     Spacer(Modifier.height(12.dp))
 
                     if (friends.isEmpty()) {
@@ -401,7 +455,9 @@ fun HomeScreen(navController: NavController) {
                             items(friends, key = { it.uid }) { friend ->
                                 ListItem(
                                     headlineContent = {
-                                        Text(friend.name.ifBlank { friend.email })
+                                        Text(
+                                            friend.name.ifBlank { friend.email }
+                                        )
                                     },
                                     supportingContent = {
                                         Text("Tap to open chat")
@@ -421,14 +477,19 @@ fun HomeScreen(navController: NavController) {
                         }
                     }
                 }
+                //========== CHATS TAB END ==========
 
+
+                //========== FRIENDS TAB START ==========
                 1 -> {
                     Text(
                         "Friends",
                         style = MaterialTheme.typography.titleLarge
                     )
+
                     Spacer(Modifier.height(12.dp))
 
+                    //========== SEARCH INPUT START ==========
                     OutlinedTextField(
                         value = searchText,
                         onValueChange = { searchText = it },
@@ -436,9 +497,11 @@ fun HomeScreen(navController: NavController) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    //========== SEARCH INPUT END ==========
 
                     Spacer(Modifier.height(8.dp))
 
+                    //========== SEARCH BUTTON START ==========
                     Button(
                         onClick = { searchUsers() },
                         enabled = !loading,
@@ -446,14 +509,18 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         Text(if (loading) "Searching..." else "Search Users")
                     }
+                    //========== SEARCH BUTTON END ==========
 
+                    //========== SEARCH RESULTS START ==========
                     LazyColumn(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         items(searchResults, key = { it.uid }) { user ->
                             ListItem(
                                 headlineContent = {
-                                    Text(user.name.ifBlank { "ZizzChat User" })
+                                    Text(
+                                        user.name.ifBlank { "ZizzChat User" }
+                                    )
                                 },
                                 supportingContent = {
                                     Text(user.email)
@@ -470,7 +537,9 @@ fun HomeScreen(navController: NavController) {
 
                                         else -> {
                                             TextButton(
-                                                onClick = { sendRequest(user) }
+                                                onClick = {
+                                                    sendRequest(user)
+                                                }
                                             ) {
                                                 Text("Add")
                                             }
@@ -481,9 +550,11 @@ fun HomeScreen(navController: NavController) {
                             HorizontalDivider()
                         }
                     }
+                    //========== SEARCH RESULTS END ==========
 
                     Spacer(Modifier.height(12.dp))
 
+                    //========== INCOMING REQUESTS UI START ==========
                     Text(
                         "Friend Requests (${incoming.size})",
                         style = MaterialTheme.typography.titleMedium
@@ -525,9 +596,11 @@ fun HomeScreen(navController: NavController) {
                             HorizontalDivider()
                         }
                     }
+                    //========== INCOMING REQUESTS UI END ==========
 
                     Spacer(Modifier.height(12.dp))
 
+                    //========== FRIENDS LIST UI START ==========
                     Text(
                         "Friends List",
                         style = MaterialTheme.typography.titleMedium
@@ -539,12 +612,16 @@ fun HomeScreen(navController: NavController) {
                         items(friends, key = { it.uid }) { friend ->
                             ListItem(
                                 headlineContent = {
-                                    Text(friend.name.ifBlank { friend.email })
+                                    Text(
+                                        friend.name.ifBlank { friend.email }
+                                    )
                                 },
                                 trailingContent = {
                                     TextButton(
                                         onClick = {
-                                            navController.navigate("chat/${friend.uid}")
+                                            navController.navigate(
+                                                "chat/${friend.uid}"
+                                            )
                                         }
                                     ) {
                                         Text("Chat")
@@ -554,14 +631,20 @@ fun HomeScreen(navController: NavController) {
                             HorizontalDivider()
                         }
                     }
+                    //========== FRIENDS LIST UI END ==========
                 }
+                //========== FRIENDS TAB END ==========
 
+
+                //========== VAULT TAB START ==========
                 2 -> {
                     Text(
                         "Vault",
                         style = MaterialTheme.typography.titleLarge
                     )
+
                     Text("Private notes saved to your account.")
+
                     Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
@@ -612,17 +695,23 @@ fun HomeScreen(navController: NavController) {
 
                     LazyColumn {
                         items(savedVault) { note ->
-                            ListItem(headlineContent = { Text(note) })
+                            ListItem(
+                                headlineContent = { Text(note) }
+                            )
                             HorizontalDivider()
                         }
                     }
                 }
+                //========== VAULT TAB END ==========
 
+
+                //========== SETTINGS TAB START ==========
                 3 -> {
                     Text(
                         "Settings",
                         style = MaterialTheme.typography.titleLarge
                     )
+
                     Spacer(Modifier.height(12.dp))
 
                     Text("Name: $username")
@@ -634,9 +723,11 @@ fun HomeScreen(navController: NavController) {
 
                     Spacer(Modifier.height(16.dp))
 
+                    //========== LOGOUT BUTTON START ==========
                     Button(
                         onClick = {
                             auth.signOut()
+
                             navController.navigate("login") {
                                 popUpTo(0) { inclusive = true }
                                 launchSingleTop = true
@@ -649,8 +740,11 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         Text("Log Out")
                     }
+                    //========== LOGOUT BUTTON END ==========
                 }
+                //========== SETTINGS TAB END ==========
             }
         }
     }
+    //========== MAIN SCAFFOLD END ==========
 }

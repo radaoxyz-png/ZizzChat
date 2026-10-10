@@ -8,9 +8,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.zizzverse.zizzchat.ui.auth.LoginScreen
+import com.zizzverse.zizzchat.ui.auth.SignupScreen
+import com.zizzverse.zizzchat.ui.chat.ChatScreen
+import com.zizzverse.zizzchat.ui.home.HomeScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,26 +43,25 @@ fun ZizzChatApp() {
 fun AppNavigation() {
     val navController = rememberNavController()
 
-    // Screen Routes Setup
     NavHost(
         navController = navController,
         startDestination = "login"
     ) {
         composable("login") {
-            // LoginScreen(navController)
+            LoginScreen(navController)
         }
         composable("signup") {
-            // SignupScreen(navController)
+            SignupScreen(navController)
         }
         composable("home") {
-            // HomeScreen(navController)
+            HomeScreen(navController)
         }
-        composable("chat/{userId}") { backStackEntry ->
+        composable(
+            route = "chat/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
-            // ChatScreen(navController, userId)
-        }
-        composable("profile") {
-            // ProfileScreen(navController)
+            ChatScreen(navController, userId)
         }
     }
 }

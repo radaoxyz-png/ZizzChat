@@ -178,58 +178,39 @@ fun HomeScreen(navController: NavController) {
             }
     }
 
+    
     fun sendRequest(user: User) {
-    if (myUid.isBlank() || user.uid.isBlank()) {
+    if (myUid.isBlank() || user.uid.isBlank() || myUid == user.uid) {
         Toast.makeText(
             context,
-            "Please log in again",
+            "Invalid user",
             Toast.LENGTH_SHORT
         ).show()
         return
     }
 
-    if (myUid == user.uid) {
-        Toast.makeText(
-            context,
-            "You cannot add yourself",
-            Toast.LENGTH_SHORT
-        ).show()
-        return
-    }
+    val requestRef = db.collection("friendRequests").document()
 
     val request = hashMapOf(
-        "requestId" to "",
+        "requestId" to requestRef.id,
         "senderId" to myUid,
         "receiverId" to user.uid,
         "status" to "pending",
         "timestamp" to System.currentTimeMillis()
     )
 
-    db.collection("friendRequests")
-        .add(request)
-        .addOnSuccessListener { document ->
-            document.update("requestId", document.id)
-                .addOnSuccessListener {
-                    Toast.makeText(
-                        context,
-                        "Friend request sent!",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                .addOnFailureListener { error ->
-                    Toast.makeText(
-                        context,
-                        error.localizedMessage
-                            ?: "Request created, but update failed",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+    requestRef.set(request)
+        .addOnSuccessListener {
+            Toast.makeText(
+                context,
+                "Friend request sent!",
+                Toast.LENGTH_SHORT
+            ).show()
         }
         .addOnFailureListener { error ->
             Toast.makeText(
                 context,
-                error.localizedMessage
-                    ?: "Friend request failed",
+                "Request failed: ${error.localizedMessage}",
                 Toast.LENGTH_LONG
             ).show()
         }

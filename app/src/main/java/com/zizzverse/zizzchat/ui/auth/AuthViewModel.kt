@@ -41,7 +41,7 @@ class AuthViewModel : ViewModel() {
 
 sealed class AuthUiState {
     object Idle : AuthUiState()
-    object Loading : AuthUriState()
+    object Loading : AuthUiState()
     object Success : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }

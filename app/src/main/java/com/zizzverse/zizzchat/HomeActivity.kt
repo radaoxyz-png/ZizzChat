@@ -288,12 +288,14 @@ class HomeActivity : Activity() {
             setPadding(dp(10), dp(14), dp(10), dp(14))
             background = rounded(card, 14)
 
+            // 📩 FRIEND REQUESTS PAGE OPEN BUTTON
             setOnClickListener {
-                Toast.makeText(
-                    this@HomeActivity,
-                    "Friend Requests page is coming next!",
-                    Toast.LENGTH_SHORT
-                ).show()
+                startActivity(
+                    Intent(
+                        this@HomeActivity,
+                        FriendRequestsActivity::class.java
+                    )
+                )
             }
         }
 

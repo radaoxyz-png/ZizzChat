@@ -1,8 +1,20 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 🌐 INTERNET PERMISSION — Firebase ব্যবহার করার জন্য -->
+    <!--========== START: INTERNET ==========-->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!--========== END: INTERNET ==========-->
+
+    <!--========== START: VOICE AND VIDEO CALL ==========-->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!--========== END: VOICE AND VIDEO CALL ==========-->
 
     <application
         android:allowBackup="false"
@@ -10,57 +22,52 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
-        <!-- 🚀 MAIN ACTIVITY — App চালু হলে প্রথমে খুলবে -->
+        <!--========== START: MAIN ACTIVITY ==========-->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- 📱 APP LAUNCHER ENTRY -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-
         </activity>
+        <!--========== END: MAIN ACTIVITY ==========-->
 
-        <!-- 🔐 LOGIN PAGE -->
+        <!--========== START: LOGIN AND SIGNUP ==========-->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- 📝 SIGN UP PAGE -->
         <activity
             android:name=".SignUpActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <!--========== END: LOGIN AND SIGNUP ==========-->
 
-        <!-- 🏠 HOME / CHAT PAGE -->
+        <!--========== START: HOME AND FRIENDS ==========-->
         <activity
             android:name=".HomeActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-   <!-- 👥 FRIEND SEARCH PAGE -->
         <activity
             android:name=".FriendsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-   
-        
-   <!-- 📩 FRIEND REQUESTS PAGE -->
+
         <activity
             android:name=".FriendRequestsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
-        <!-- PRIVATE CHAT PAGE -->
         <activity
             android:name=".ChatActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-    
-    </application>
+        <!--========== END: HOME AND FRIENDS ==========-->
 
+    </application>
 </manifest>

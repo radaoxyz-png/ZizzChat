@@ -1,20 +1,16 @@
-
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!--========== START: INTERNET ==========-->
+    <!--========== START: PERMISSIONS ==========-->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!--========== END: INTERNET ==========-->
-
-    <!--========== START: VOICE AND VIDEO CALL ==========-->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!--========== END: VOICE AND VIDEO CALL ==========-->
+    <!--========== END: PERMISSIONS ==========-->
 
     <application
         android:allowBackup="false"
@@ -22,20 +18,19 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
-        <!--========== START: MAIN ACTIVITY ==========-->
+        <!--========== START: MAIN ==========-->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!--========== END: MAIN ACTIVITY ==========-->
+        <!--========== END: MAIN ==========-->
 
-        <!--========== START: LOGIN AND SIGNUP ==========-->
+        <!--========== START: AUTH ==========-->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
@@ -45,9 +40,9 @@
             android:name=".SignUpActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-        <!--========== END: LOGIN AND SIGNUP ==========-->
+        <!--========== END: AUTH ==========-->
 
-        <!--========== START: HOME AND FRIENDS ==========-->
+        <!--========== START: HOME AND CHAT ==========-->
         <activity
             android:name=".HomeActivity"
             android:exported="false"
@@ -67,7 +62,14 @@
             android:name=".ChatActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-        <!--========== END: HOME AND FRIENDS ==========-->
+        <!--========== END: HOME AND CHAT ==========-->
+
+        <!--========== START: CALL ==========-->
+        <activity
+            android:name=".CallActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <!--========== END: CALL ==========-->
 
     </application>
 </manifest>

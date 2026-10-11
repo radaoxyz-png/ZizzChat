@@ -5,8 +5,8 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import im.zego.uikit.prebuilt.call.ZegoUIKitPrebuiltCallFragment
-import im.zego.uikit.prebuilt.call.config.ZegoUIKitPrebuiltCallConfig
+import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallFragment
+import com.zegocloud.uikit.prebuilt.call.ZegoUIKitPrebuiltCallConfig
 
 class CallActivity : AppCompatActivity() {
 

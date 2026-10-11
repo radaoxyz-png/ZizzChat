@@ -1,12 +1,17 @@
 
 package com.zizzverse.zizzchat.ui.chat
 
+//========== IMPORTS START ==========
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,13 +20,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.zizzverse.zizzchat.data.model.Message
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+//========== IMPORTS END ==========
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,24 +41,34 @@ fun ChatScreen(
     navController: NavController,
     userId: String?
 ) {
+
+    //========== BASIC STATE START ==========
     val context = LocalContext.current
     val currentUid = FirebaseAuth.getInstance().currentUser?.uid
     val receiverUid = userId.orEmpty()
+    val db = remember { FirebaseFirestore.getInstance() }
 
     var textState by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var chatError by remember { mutableStateOf<String?>(null) }
 
+    var receiverName by remember { mutableStateOf("Loading...") }
+    var isOnline by remember { mutableStateOf(false) }
+    var lastSeen by remember { mutableLongStateOf(0L) }
+    var menuExpanded by remember { mutableStateOf(false) }
+
     val messages = remember { mutableStateListOf<Message>() }
     val listState = rememberLazyListState()
-    val db = remember { FirebaseFirestore.getInstance() }
 
     val chatId = remember(currentUid, receiverUid) {
         listOf(currentUid.orEmpty(), receiverUid)
             .sorted()
             .joinToString("_")
     }
+    //========== BASIC STATE END ==========
 
+
+    //========== AUTH VALIDATION START ==========
     LaunchedEffect(currentUid, receiverUid) {
         if (currentUid == null) {
             navController.navigate("login") {
@@ -60,7 +82,56 @@ fun ChatScreen(
             chatError = "Invalid chat user."
         }
     }
+    //========== AUTH VALIDATION END ==========
 
+
+    //========== RECEIVER PROFILE LISTENER START ==========
+    DisposableEffect(receiverUid, currentUid) {
+        if (
+            currentUid == null ||
+            receiverUid.isBlank() ||
+            receiverUid == currentUid
+        ) {
+            onDispose { }
+        } else {
+            val registration = db.collection("users")
+                .document(receiverUid)
+                .addSnapshotListener { snapshot, error ->
+
+                    if (error != null) {
+                        receiverName = "Chat"
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null && snapshot.exists()) {
+                        receiverName =
+                            snapshot.getString("name")
+                                ?.takeIf { it.isNotBlank() }
+                                ?: snapshot.getString("username")
+                                    ?.takeIf { it.isNotBlank() }
+                                ?: "ZizzChat User"
+
+                        isOnline =
+                            snapshot.getBoolean("isOnline") ?: false
+
+                        lastSeen =
+                            snapshot.getLong("lastSeen") ?: 0L
+                    } else {
+                        receiverName = "ZizzChat User"
+                        isOnline = false
+                        lastSeen = 0L
+                    }
+                }
+
+            onDispose {
+                registration.remove()
+            }
+        }
+    }
+    //========== RECEIVER PROFILE LISTENER END ==========
+
+
+    //========== MESSAGE LISTENER START ==========
     DisposableEffect(chatId, currentUid, receiverUid) {
         if (
             currentUid == null ||
@@ -77,7 +148,8 @@ fun ChatScreen(
 
                     if (error != null) {
                         chatError =
-                            error.localizedMessage ?: "Could not load messages"
+                            error.localizedMessage
+                                ?: "Could not load messages"
                         return@addSnapshotListener
                     }
 
@@ -85,7 +157,17 @@ fun ChatScreen(
 
                     snapshot?.documents?.forEach { document ->
                         document.toObject(Message::class.java)
-                            ?.let { messages.add(it) }
+                            ?.let { message ->
+                                messages.add(
+                                    if (message.messageId.isBlank()) {
+                                        message.copy(
+                                            messageId = document.id
+                                        )
+                                    } else {
+                                        message
+                                    }
+                                )
+                            }
                     }
 
                     chatError = null
@@ -96,41 +178,176 @@ fun ChatScreen(
             }
         }
     }
+    //========== MESSAGE LISTENER END ==========
 
+
+    //========== AUTO SCROLL START ==========
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
     }
+    //========== AUTO SCROLL END ==========
 
+
+    //========== STATUS TEXT START ==========
+    val statusText = when {
+        isOnline -> "Active now"
+        lastSeen > 0L -> {
+            val formatted = SimpleDateFormat(
+                "dd MMM, hh:mm a",
+                Locale.getDefault()
+            ).format(Date(lastSeen))
+
+            "Last seen $formatted"
+        }
+        else -> "Offline"
+    }
+    //========== STATUS TEXT END ==========
+
+
+    //========== MAIN SCAFFOLD START ==========
     Scaffold(
+
+        //========== CHAT HEADER START ==========
         topBar = {
             TopAppBar(
-                title = { Text("ZizzChat") },
+
+                title = {
+                    Column(
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Text(
+                            text = receiverName,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isOnline) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outline
+                                        }
+                                    )
+                            )
+
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isOnline) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                maxLines = 1
+                            )
+                        }
+                    }
+                },
+
                 navigationIcon = {
                     IconButton(
-                        onClick = { navController.popBackStack() }
+                        onClick = {
+                            navController.popBackStack()
+                        }
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
+                    }
+                },
+
+                actions = {
+                    Box {
+                        IconButton(
+                            onClick = {
+                                menuExpanded = true
+                            }
+                        ) {
+                            Text(
+                                text = "⋮",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = {
+                                menuExpanded = false
+                            }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Copy user ID") },
+                                onClick = {
+                                    menuExpanded = false
+
+                                    val clipboard =
+                                        context.getSystemService(
+                                            Context.CLIPBOARD_SERVICE
+                                        ) as ClipboardManager
+
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText(
+                                            "User ID",
+                                            receiverUid
+                                        )
+                                    )
+
+                                    Toast.makeText(
+                                        context,
+                                        "User ID copied",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Close chat") },
+                                onClick = {
+                                    menuExpanded = false
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
                     }
                 }
             )
         },
+        //========== CHAT HEADER END ==========
+
+
+        //========== MESSAGE INPUT START ==========
         bottomBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .navigationBarsPadding()
+                    .padding(
+                        horizontal = 10.dp,
+                        vertical = 8.dp
+                    ),
                 verticalAlignment = Alignment.Bottom
             ) {
+
                 OutlinedTextField(
                     value = textState,
-                    onValueChange = { textState = it },
-                    placeholder = { Text("Message...") },
+                    onValueChange = {
+                        textState = it
+                    },
+                    placeholder = {
+                        Text("Message...")
+                    },
                     modifier = Modifier.weight(1f),
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp)
@@ -144,6 +361,7 @@ fun ChatScreen(
                         currentUid != null &&
                         receiverUid.isNotBlank() &&
                         receiverUid != currentUid,
+
                     onClick = {
                         val messageText = textState.trim()
 
@@ -163,8 +381,7 @@ fun ChatScreen(
                                 "senderId" to currentUid,
                                 "receiverId" to receiverUid,
                                 "messageText" to messageText,
-                                "timestamp" to
-                                    System.currentTimeMillis(),
+                                "timestamp" to System.currentTimeMillis(),
                                 "isRead" to false
                             )
 
@@ -193,20 +410,24 @@ fun ChatScreen(
                         )
                     } else {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Send"
                         )
                     }
                 }
             }
         }
+        //========== MESSAGE INPUT END ==========
+
     ) { innerPadding ->
 
+        //========== CHAT BODY START ==========
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+
             chatError?.let { error ->
                 Text(
                     text = error,
@@ -236,7 +457,8 @@ fun ChatScreen(
                         key = { it.messageId }
                     ) { message ->
 
-                        val mine = message.senderId == currentUid
+                        val mine =
+                            message.senderId == currentUid
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -277,5 +499,7 @@ fun ChatScreen(
                 }
             }
         }
+        //========== CHAT BODY END ==========
     }
+    //========== MAIN SCAFFOLD END ==========
 }

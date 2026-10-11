@@ -24,7 +24,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.4"
-
+      
+      - name: Check Zego Dependencies
+        run: gradle :app:dependencies --configuration debugCompileClasspath | grep -i zego
+        
       - name: Build Debug APK
         env:
           ZEGO_APP_SIGN: ${{ secrets.ZEGO_APP_SIGN }}

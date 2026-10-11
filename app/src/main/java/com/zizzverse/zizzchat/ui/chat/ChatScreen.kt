@@ -1,4 +1,3 @@
-
 package com.zizzverse.zizzchat.ui.chat
 
 //========== IMPORTS START ==========
@@ -34,15 +33,13 @@ import java.util.Date
 import java.util.Locale
 //========== IMPORTS END ==========
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     navController: NavController,
     userId: String?
 ) {
-
-    //========== BASIC STATE START ==========
+    //========== STATE START ==========
     val context = LocalContext.current
     val currentUid = FirebaseAuth.getInstance().currentUser?.uid
     val receiverUid = userId.orEmpty()
@@ -65,10 +62,13 @@ fun ChatScreen(
             .sorted()
             .joinToString("_")
     }
-    //========== BASIC STATE END ==========
 
+    val timeFormat = remember {
+        SimpleDateFormat("hh:mm a", Locale.getDefault())
+    }
+    //========== STATE END ==========
 
-    //========== AUTH VALIDATION START ==========
+    //========== AUTH CHECK START ==========
     LaunchedEffect(currentUid, receiverUid) {
         if (currentUid == null) {
             navController.navigate("login") {
@@ -76,16 +76,14 @@ fun ChatScreen(
                 launchSingleTop = true
             }
         } else if (
-            receiverUid.isBlank() ||
-            receiverUid == currentUid
+            receiverUid.isBlank() || receiverUid == currentUid
         ) {
             chatError = "Invalid chat user."
         }
     }
-    //========== AUTH VALIDATION END ==========
+    //========== AUTH CHECK END ==========
 
-
-    //========== RECEIVER PROFILE LISTENER START ==========
+    //========== USER PROFILE LISTENER START ==========
     DisposableEffect(receiverUid, currentUid) {
         if (
             currentUid == null ||
@@ -97,7 +95,6 @@ fun ChatScreen(
             val registration = db.collection("users")
                 .document(receiverUid)
                 .addSnapshotListener { snapshot, error ->
-
                     if (error != null) {
                         receiverName = "Chat"
                         return@addSnapshotListener
@@ -113,25 +110,17 @@ fun ChatScreen(
 
                         isOnline =
                             snapshot.getBoolean("isOnline") ?: false
-
                         lastSeen =
                             snapshot.getLong("lastSeen") ?: 0L
-                    } else {
-                        receiverName = "ZizzChat User"
-                        isOnline = false
-                        lastSeen = 0L
                     }
                 }
 
-            onDispose {
-                registration.remove()
-            }
+            onDispose { registration.remove() }
         }
     }
-    //========== RECEIVER PROFILE LISTENER END ==========
+    //========== USER PROFILE LISTENER END ==========
 
-
-    //========== MESSAGE LISTENER START ==========
+    //========== MESSAGES AND READ RECEIPTS START ==========
     DisposableEffect(chatId, currentUid, receiverUid) {
         if (
             currentUid == null ||
@@ -153,12 +142,11 @@ fun ChatScreen(
                         return@addSnapshotListener
                     }
 
-                    messages.clear()
-
-                    snapshot?.documents?.forEach { document ->
-                        document.toObject(Message::class.java)
-                            ?.let { message ->
-                                messages.add(
+                    val loadedMessages = snapshot?.documents
+                        .orEmpty()
+                        .mapNotNull { document ->
+                            document.toObject(Message::class.java)
+                                ?.let { message ->
                                     if (message.messageId.isBlank()) {
                                         message.copy(
                                             messageId = document.id
@@ -166,20 +154,38 @@ fun ChatScreen(
                                     } else {
                                         message
                                     }
-                                )
-                            }
-                    }
+                                }
+                        }
 
+                    messages.clear()
+                    messages.addAll(loadedMessages)
                     chatError = null
+
+                    // Mark incoming messages as read.
+                    snapshot?.documents?.forEach { document ->
+                        val senderId =
+                            document.getString("senderId")
+                        val messageReceiver =
+                            document.getString("receiverId")
+                        val isRead =
+                            document.getBoolean("isRead") ?: false
+
+                        if (
+                            senderId == receiverUid &&
+                            messageReceiver == currentUid &&
+                            !isRead
+                        ) {
+                            document.reference.update(
+                                "isRead", true
+                            )
+                        }
+                    }
                 }
 
-            onDispose {
-                registration.remove()
-            }
+            onDispose { registration.remove() }
         }
     }
-    //========== MESSAGE LISTENER END ==========
-
+    //========== MESSAGES AND READ RECEIPTS END ==========
 
     //========== AUTO SCROLL START ==========
     LaunchedEffect(messages.size) {
@@ -189,8 +195,7 @@ fun ChatScreen(
     }
     //========== AUTO SCROLL END ==========
 
-
-    //========== STATUS TEXT START ==========
+    //========== ONLINE STATUS TEXT START ==========
     val statusText = when {
         isOnline -> "Active now"
         lastSeen > 0L -> {
@@ -198,21 +203,17 @@ fun ChatScreen(
                 "dd MMM, hh:mm a",
                 Locale.getDefault()
             ).format(Date(lastSeen))
-
             "Last seen $formatted"
         }
         else -> "Offline"
     }
-    //========== STATUS TEXT END ==========
-
+    //========== ONLINE STATUS TEXT END ==========
 
     //========== MAIN SCAFFOLD START ==========
     Scaffold(
-
-        //========== CHAT HEADER START ==========
         topBar = {
+            //========== HEADER START ==========
             TopAppBar(
-
                 title = {
                     Column(
                         modifier = Modifier.padding(end = 4.dp)
@@ -253,29 +254,23 @@ fun ChatScreen(
                         }
                     }
                 },
-
                 navigationIcon = {
                     IconButton(
-                        onClick = {
-                            navController.popBackStack()
-                        }
+                        onClick = { navController.popBackStack() }
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
                 },
-
                 actions = {
                     Box {
                         IconButton(
-                            onClick = {
-                                menuExpanded = true
-                            }
+                            onClick = { menuExpanded = true }
                         ) {
                             Text(
-                                text = "⋮",
+                                "⋮",
                                 style = MaterialTheme.typography.headlineMedium
                             )
                         }
@@ -290,7 +285,6 @@ fun ChatScreen(
                                 text = { Text("Copy user ID") },
                                 onClick = {
                                     menuExpanded = false
-
                                     val clipboard =
                                         context.getSystemService(
                                             Context.CLIPBOARD_SERVICE
@@ -298,11 +292,9 @@ fun ChatScreen(
 
                                     clipboard.setPrimaryClip(
                                         ClipData.newPlainText(
-                                            "User ID",
-                                            receiverUid
+                                            "User ID", receiverUid
                                         )
                                     )
-
                                     Toast.makeText(
                                         context,
                                         "User ID copied",
@@ -322,32 +314,23 @@ fun ChatScreen(
                     }
                 }
             )
+            //========== HEADER END ==========
         },
-        //========== CHAT HEADER END ==========
 
-
-        //========== MESSAGE INPUT START ==========
         bottomBar = {
+            //========== MESSAGE INPUT START ==========
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(
-                        horizontal = 10.dp,
-                        vertical = 8.dp
-                    ),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-
                 OutlinedTextField(
                     value = textState,
-                    onValueChange = {
-                        textState = it
-                    },
-                    placeholder = {
-                        Text("Message...")
-                    },
+                    onValueChange = { textState = it },
+                    placeholder = { Text("Message...") },
                     modifier = Modifier.weight(1f),
                     maxLines = 4,
                     shape = RoundedCornerShape(24.dp)
@@ -361,7 +344,6 @@ fun ChatScreen(
                         currentUid != null &&
                         receiverUid.isNotBlank() &&
                         receiverUid != currentUid,
-
                     onClick = {
                         val messageText = textState.trim()
 
@@ -392,7 +374,6 @@ fun ChatScreen(
                                 }
                                 .addOnFailureListener { error ->
                                     sending = false
-
                                     Toast.makeText(
                                         context,
                                         error.localizedMessage
@@ -410,15 +391,14 @@ fun ChatScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            Icons.AutoMirrored.Filled.Send,
                             contentDescription = "Send"
                         )
                     }
                 }
             }
+            //========== MESSAGE INPUT END ==========
         }
-        //========== MESSAGE INPUT END ==========
-
     ) { innerPadding ->
 
         //========== CHAT BODY START ==========
@@ -427,7 +407,6 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-
             chatError?.let { error ->
                 Text(
                     text = error,
@@ -457,15 +436,14 @@ fun ChatScreen(
                         key = { it.messageId }
                     ) { message ->
 
-                        val mine =
-                            message.senderId == currentUid
+                        val mine = message.senderId == currentUid
 
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (mine) {
-                                Arrangement.End
+                            horizontalAlignment = if (mine) {
+                                Alignment.End
                             } else {
-                                Arrangement.Start
+                                Alignment.Start
                             }
                         ) {
                             Text(
@@ -474,11 +452,9 @@ fun ChatScreen(
                                     .widthIn(max = 300.dp)
                                     .background(
                                         color = if (mine) {
-                                            MaterialTheme.colorScheme
-                                                .primaryContainer
+                                            MaterialTheme.colorScheme.primaryContainer
                                         } else {
-                                            MaterialTheme.colorScheme
-                                                .surfaceVariant
+                                            MaterialTheme.colorScheme.surfaceVariant
                                         },
                                         shape = RoundedCornerShape(16.dp)
                                     )
@@ -487,13 +463,52 @@ fun ChatScreen(
                                         vertical = 10.dp
                                     ),
                                 color = if (mine) {
-                                    MaterialTheme.colorScheme
-                                        .onPrimaryContainer
+                                    MaterialTheme.colorScheme.onPrimaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme
-                                        .onSurfaceVariant
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                             )
+
+                            //========== MESSAGE TIME AND STATUS START ==========
+                            Row(
+                                modifier = Modifier.padding(
+                                    top = 3.dp,
+                                    start = 5.dp,
+                                    end = 5.dp
+                                ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text(
+                                    text = if (message.timestamp > 0L) {
+                                        timeFormat.format(
+                                            Date(message.timestamp)
+                                        )
+                                    } else {
+                                        ""
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                if (mine) {
+                                    Text(
+                                        text = if (message.isRead) "Read" else "Sent",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (message.isRead) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        fontWeight = if (message.isRead) {
+                                            FontWeight.SemiBold
+                                        } else {
+                                            FontWeight.Normal
+                                        }
+                                    )
+                                }
+                            }
+                            //========== MESSAGE TIME AND STATUS END ==========
                         }
                     }
                 }

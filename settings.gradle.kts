@@ -1,3 +1,4 @@
+
 pluginManagement {
     repositories {
         google()
@@ -11,6 +12,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+
+        //========== START: ZEGOCLOUD REPOSITORIES ==========
+        maven { url = uri("https://maven.zego.im") }
+        maven { url = uri("https://www.jitpack.io") }
+        //========== END: ZEGOCLOUD REPOSITORIES ==========
     }
 }
 

@@ -492,20 +492,16 @@ fun ChatScreen(
                                 )
 
                                 if (mine) {
-                                    Text(
-                                        text = if (message.isRead) "Read" else "Sent",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (message.isRead) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                        fontWeight = if (message.isRead) {
-                                            FontWeight.SemiBold
-                                        } else {
-                                            FontWeight.Normal
-                                        }
-                                    )
+    Text(
+        text = if (message.isRead) "✓✓" else "✓",
+        style = MaterialTheme.typography.labelSmall,
+        color = if (message.isRead) {
+            androidx.compose.ui.graphics.Color(0xFF1687F8)
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        fontWeight = FontWeight.SemiBold
+    )
                                 }
                             }
                             //========== MESSAGE TIME AND STATUS END ==========

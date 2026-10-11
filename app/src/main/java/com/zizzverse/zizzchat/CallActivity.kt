@@ -137,12 +137,19 @@ class CallActivity : AppCompatActivity() {
             supportFragmentManager.beginTransaction()
                 .replace(container.id, fragment)
                 .commit()
+} catch (e: Exception) {
+    callScreenOpened = false
+    Log.e("ZizzChatCall", "Could not open call screen", e)
 
-        } catch (e: Exception) {
-            callScreenOpened = false
-            Log.e("ZizzChatCall", "Could not open call screen", e)
-            showError("Call error: ${e.javaClass.simpleName}")
-        }
+    Toast.makeText(
+        this,
+        "Call error: ${e.message ?: e.javaClass.simpleName}",
+        Toast.LENGTH_LONG
+    ).show()
+
+    finish()
+}
+        
     }
 
     private fun showError(message: String) {

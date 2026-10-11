@@ -1,3 +1,4 @@
+
 package com.zizzverse.zizzchat.ui.chat
 
 //========== IMPORTS START ==========
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -48,7 +50,6 @@ fun ChatScreen(
     var textState by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var chatError by remember { mutableStateOf<String?>(null) }
-
     var receiverName by remember { mutableStateOf("Loading...") }
     var isOnline by remember { mutableStateOf(false) }
     var lastSeen by remember { mutableLongStateOf(0L) }
@@ -120,7 +121,7 @@ fun ChatScreen(
     }
     //========== USER PROFILE LISTENER END ==========
 
-    //========== MESSAGES AND READ RECEIPTS START ==========
+    //========== MESSAGE LISTENER START ==========
     DisposableEffect(chatId, currentUid, receiverUid) {
         if (
             currentUid == null ||
@@ -142,50 +143,58 @@ fun ChatScreen(
                         return@addSnapshotListener
                     }
 
-                    val loadedMessages = snapshot?.documents
-                        .orEmpty()
-                        .mapNotNull { document ->
-                            document.toObject(Message::class.java)
-                                ?.let { message ->
-                                    if (message.messageId.isBlank()) {
-                                        message.copy(
-                                            messageId = document.id
-                                        )
-                                    } else {
-                                        message
-                                    }
+                    val documents = snapshot?.documents.orEmpty()
+
+                    val loadedMessages = documents.mapNotNull { document ->
+                        document.toObject(Message::class.java)
+                            ?.let { message ->
+                                if (message.messageId.isBlank()) {
+                                    message.copy(messageId = document.id)
+                                } else {
+                                    message
                                 }
-                        }
+                            }
+                    }
 
                     messages.clear()
                     messages.addAll(loadedMessages)
                     chatError = null
 
-                    // Mark incoming messages as read.
-                    snapshot?.documents?.forEach { document ->
+                    //========== MARK INCOMING MESSAGES READ START ==========
+                    documents.forEach { document ->
                         val senderId =
                             document.getString("senderId")
                         val messageReceiver =
                             document.getString("receiverId")
-                        val isRead =
+                        val read =
                             document.getBoolean("isRead") ?: false
 
                         if (
                             senderId == receiverUid &&
                             messageReceiver == currentUid &&
-                            !isRead
+                            !read
                         ) {
-                            document.reference.update(
-                                "isRead", true
-                            )
+                            document.reference
+                                .update("isRead", true)
+                                .addOnFailureListener { updateError ->
+                                    Toast.makeText(
+                                        context,
+                                        "Read update failed: ${
+                                            updateError.localizedMessage
+                                                ?: "Permission denied"
+                                        }",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
                         }
                     }
+                    //========== MARK INCOMING MESSAGES READ END ==========
                 }
 
             onDispose { registration.remove() }
         }
     }
-    //========== MESSAGES AND READ RECEIPTS END ==========
+    //========== MESSAGE LISTENER END ==========
 
     //========== AUTO SCROLL START ==========
     LaunchedEffect(messages.size) {
@@ -195,7 +204,7 @@ fun ChatScreen(
     }
     //========== AUTO SCROLL END ==========
 
-    //========== ONLINE STATUS TEXT START ==========
+    //========== ONLINE STATUS START ==========
     val statusText = when {
         isOnline -> "Active now"
         lastSeen > 0L -> {
@@ -207,12 +216,11 @@ fun ChatScreen(
         }
         else -> "Offline"
     }
-    //========== ONLINE STATUS TEXT END ==========
+    //========== ONLINE STATUS END ==========
 
     //========== MAIN SCAFFOLD START ==========
     Scaffold(
         topBar = {
-            //========== HEADER START ==========
             TopAppBar(
                 title = {
                     Column(
@@ -285,6 +293,7 @@ fun ChatScreen(
                                 text = { Text("Copy user ID") },
                                 onClick = {
                                     menuExpanded = false
+
                                     val clipboard =
                                         context.getSystemService(
                                             Context.CLIPBOARD_SERVICE
@@ -292,9 +301,11 @@ fun ChatScreen(
 
                                     clipboard.setPrimaryClip(
                                         ClipData.newPlainText(
-                                            "User ID", receiverUid
+                                            "User ID",
+                                            receiverUid
                                         )
                                     )
+
                                     Toast.makeText(
                                         context,
                                         "User ID copied",
@@ -314,11 +325,9 @@ fun ChatScreen(
                     }
                 }
             )
-            //========== HEADER END ==========
         },
 
         bottomBar = {
-            //========== MESSAGE INPUT START ==========
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -374,6 +383,7 @@ fun ChatScreen(
                                 }
                                 .addOnFailureListener { error ->
                                     sending = false
+
                                     Toast.makeText(
                                         context,
                                         error.localizedMessage
@@ -397,7 +407,6 @@ fun ChatScreen(
                     }
                 }
             }
-            //========== MESSAGE INPUT END ==========
         }
     ) { innerPadding ->
 
@@ -469,7 +478,7 @@ fun ChatScreen(
                                 }
                             )
 
-                            //========== MESSAGE TIME AND STATUS START ==========
+                            //========== TIME AND TICKS START ==========
                             Row(
                                 modifier = Modifier.padding(
                                     top = 3.dp,
@@ -481,9 +490,7 @@ fun ChatScreen(
                             ) {
                                 Text(
                                     text = if (message.timestamp > 0L) {
-                                        timeFormat.format(
-                                            Date(message.timestamp)
-                                        )
+                                        timeFormat.format(Date(message.timestamp))
                                     } else {
                                         ""
                                     },
@@ -492,19 +499,19 @@ fun ChatScreen(
                                 )
 
                                 if (mine) {
-    Text(
-        text = if (message.isRead) "✓✓" else "✓",
-        style = MaterialTheme.typography.labelSmall,
-        color = if (message.isRead) {
-            androidx.compose.ui.graphics.Color(0xFF1687F8)
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        fontWeight = FontWeight.SemiBold
-    )
+                                    Text(
+                                        text = if (message.isRead) "✓✓" else "✓",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (message.isRead) {
+                                            Color(0xFF1687F8)
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
-                            //========== MESSAGE TIME AND STATUS END ==========
+                            //========== TIME AND TICKS END ==========
                         }
                     }
                 }
